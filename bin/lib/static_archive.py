@@ -22,21 +22,25 @@ from pprint import pprint
 
 # Get Authentification Token
 def auth(user,pwd,srv):
+	"""Try to logout from server in case any previous connection is still open. Finally login and return authentification token."""
 	try:
 		srv.confluence2.logout(token)
 	finally:
 		return srv.confluence2.login(user, pwd)
 
 def getSpaceInfo(token,sk):
+	"""Return python list of details for a given spaces. Requires authentification token"""
 	return srv.confluence2.getSpace(token,sk)
 
 #returns the content of the given id in plain html wrapped by a <div>
 def saveConfluenceContent(token,id):
+	"""Return the clean html code of a confluence page or blog with a given id.Requires authentification token"""
 	parameter = {}
 	parameter['style'] = 'clean'
 	return srv.confluence2.renderContent(token,'',id,'',parameter)
 
 def recursivePagetreeHTML(parents,i):
+	"""Confluence does not provide a simple solution of getting the page tree as shown in the sidebar of confluence. This function requires an array of all page id of all pages with children and starts with i=0. With Recursion the page tree is returned."""
 	html = ""
 	for ele in parents[i]:
 		#get element information
@@ -66,6 +70,7 @@ def recursivePagetreeHTML(parents,i):
 	return html
 
 def getConfAttachments(token,contentid,dirname):
+	"""Downloads all attachments to a page and returns a html code block to be included onto a saved page which displays all attachments"""
 	attachments = srv.confluence2.getAttachments(token,contentid)
 	attachHTML = ""
 	if attachments:
@@ -82,6 +87,7 @@ def getConfAttachments(token,contentid,dirname):
 	return attachHTML
 
 def startArchive(servername,user,sk,downloadPages,downloadBlog,downloadAttach):
+	"""Main function to start when downloading archives"""
 	print ("Please enter the password for User " + user)
 	pwd     = getpass.getpass()
 	srv     = xmlrpc.client.ServerProxy(servername+'rpc/xmlrpc')

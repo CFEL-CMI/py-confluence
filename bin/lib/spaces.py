@@ -1,5 +1,7 @@
 #!/usr/bin/python3
-
+"""
+spaces file
+"""
 import os
 import sys
 import string
@@ -10,14 +12,15 @@ import xmlrpc.client
 # https://developer.atlassian.com/confdev/confluence-rest-api/confluence-xml-rpc-and-soap-apis/remote-confluence-methods
 
 def auth(user,pwd,srv):
+	"""Try to logout from server in case any previous connection is still open. Finally login and return authentification token."""
 	try:
 		srv.confluence2.logout(token)
 	finally:
 		return srv.confluence2.login(user, pwd)
 
-"""docstring for confluence_create_CMI_space"""
 def createCMISpace(servername,user,spacekey,spacename):
-	
+	"""Creates a new space (required spacekey, name), sets the homepage according to the CMI template and sets space categories **cfel-cmi** and **cmi-elog-calendar**"""
+
 	content = '<ac:layout><ac:layout-section ac:type="two_equal"><ac:layout-cell><ac:structured-macro ac:name="info"><ac:parameter ac:name="title">Overview</ac:parameter><ac:rich-text-body><p>This is the Confluence Space (Wiki, logbook, etc.) of the project '+spacename+'.</p></ac:rich-text-body></ac:structured-macro></ac:layout-cell>'
 	content +='<ac:layout-cell><p><br /><ac:structured-macro ac:name="livesearch"><ac:parameter ac:name="additional">page excerpt</ac:parameter><ac:parameter ac:name="placeholder">Search space</ac:parameter><ac:parameter ac:name="'+spacekey+'">com.atlassian.confluence.content.render.xhtml.model.resource.identifiers.SpaceResourceIdentifier@35</ac:parameter><ac:parameter ac:name="spaceKey"><ri:space ri:space-key="'+spacekey+'" /></ac:parameter></ac:structured-macro></p></ac:layout-cell></ac:layout-section>'
 	content +='<ac:layout-section ac:type="single"><ac:layout-cell><ac:structured-macro ac:name="info"><ac:parameter ac:name="title">Members of the project (Confluence Space permissions)</ac:parameter><ac:rich-text-body><ac:macro ac:name="spaceaccessusersminimal" /></ac:rich-text-body></ac:structured-macro></ac:layout-cell></ac:layout-section>'
