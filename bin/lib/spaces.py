@@ -1,5 +1,11 @@
 #!/usr/bin/python3
 
+import os
+import sys
+import string
+import getpass
+import xmlrpc
+import xmlrpc.client
 
 # https://developer.atlassian.com/confdev/confluence-rest-api/confluence-xml-rpc-and-soap-apis/remote-confluence-methods
 
