@@ -1,7 +1,11 @@
-#!/usr/bin/python3
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# Copyright (C) 2016 Alex Franke
+
 """
 spaces file
 """
+
 import os
 import sys
 import string
@@ -42,7 +46,7 @@ def createCMISpace(servername,user,spacekey,spacename):
 	srv.confluence2.addLabelByNameToSpace(token,"team:cmi-elog-calendar",spacekey)
 
 	#get information about newly created space
-	newspace   = srv.confluence2.getSpace(token,spacekey) 
+	newspace   = srv.confluence2.getSpace(token,spacekey)
 	#get content ID of homepage of the space
 	homepageid = newspace["homePage"]
 
@@ -54,13 +58,3 @@ def createCMISpace(servername,user,spacekey,spacename):
 
 	#upload content to server
 	srv.confluence2.updatePage(token, homepage,{"versionComment": "updated Page according to template"})
-
-
-
-
-
-
-
-
-
-
