@@ -1,9 +1,9 @@
-#!/usr/bin/python3
-
-# static-archive.py
-
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# Copyright (C) 2016 Alex Franke
+#
 # This script will generate a local and readable
-# HTML backup of a Confluence space within a new folder 
+# HTML backup of a Confluence space within a new folder
 
 import os
 import datetime
@@ -53,14 +53,14 @@ def recursivePagetreeHTML(parents,i):
 		else:
 			html += '<ul id="'+elehtml["id"]+'" style="display:none"><li>'
 
-		
-		#if current element has children 
+
+		#if current element has children
 		if ele in parents:
 			html += '<a class="arrow" onclick="showChildren(this)" href="#">&rarr;</a>'
 			html += '<a class="pagelink" href="'+elehtml["id"]+'.html">'+elehtml["title"]+'</a>'
 			#recursively insert children
 			html += recursivePagetreeHTML(parents,ele)
-		#current element has no children 
+		#current element has no children
 		else:
 			html += '<a class="dot">&middot;</a>'
 			html += '<a class="pagelink" href="'+elehtml["id"]+'.html">'+elehtml["title"]+'</a>'
@@ -159,7 +159,7 @@ def startArchive(servername,user,sk,downloadPages,downloadBlog,downloadAttach):
 			attachHTML = ""
 			if downloadAttach:
 				attachHTML = getConfAttachments(token,page["id"],dirname)
-				
+
 
 			with open(os.path.join(script_dir, pagepath), "wt",encoding="utf-8") as out_file:
 				print("("+str(count)+"/"+pagescount+") writing page "+ page["id"])
@@ -179,7 +179,7 @@ def startArchive(servername,user,sk,downloadPages,downloadBlog,downloadAttach):
 		print('Saving blog')
 		os.mkdir(dirname+'/blogs')
 		blogs = srv.confluence2.getBlogEntries(token,sk)
-		
+
 		blogscount = str(len(blogs))
 		print(blogscount+ " blog posts found.")
 		print("creating sorted blog tree.")
@@ -187,7 +187,7 @@ def startArchive(servername,user,sk,downloadPages,downloadBlog,downloadAttach):
 		monthnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 		blogtreeHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><base target="_parent" /><link rel="stylesheet" href="../assets/main.css"><script language="javascript" type="text/javascript" src="../assets/main.js"></script><title>blogtree</title></head><body><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+spaceinfo["name"]+'</i></h3><p><i>saved '+str(datetime.datetime.today())+'</i></p></div><div><a target href="../pages/'+spaceinfo["homePage"]+'.html"><span id="gotospan">go&nbsp;to&nbsp;pages</span></a></div></div><div style="padding:0 10px;"><h3 style="color:Crimson">BLOG</h3><table class="blogtree" style="width:100%">'
 		#create a defaultdict with keys 201510,201509,2014111 etc for every month. Insert every blog resp. as value
-		yearmonthDict = defaultdict(list)	
+		yearmonthDict = defaultdict(list)
 		for blog in blogs:
 			yearmonthDict[str(blog["publishDate"])[0:6]].append(blog) #fill default dict
 		#sort months
@@ -200,7 +200,7 @@ def startArchive(servername,user,sk,downloadPages,downloadBlog,downloadAttach):
 			usrtBlogs = dict()
 			for blog in yearmonthEntry:
 				usrtBlogs[str(blog["publishDate"])] = blog
-			#sorted dict of all blogs. Key is publish date, value is blog 	
+			#sorted dict of all blogs. Key is publish date, value is blog
 			srtBlogs = OrderedDict(sorted(usrtBlogs.items()))
 			srtBlogsIt = list(srtBlogs.items())
 			srtBlogsIt.reverse()
@@ -237,7 +237,7 @@ def startArchive(servername,user,sk,downloadPages,downloadBlog,downloadAttach):
 				withthis = '="../attachments'
 				contenthtml = saveConfluenceContent(token,blog["id"]).replace(replacethis,withthis)
 				out_file.write(blogheader+attachHTML+contenthtml+commentHTML+blogfooter)
-		
+
 
 
 
@@ -248,7 +248,3 @@ def startArchive(servername,user,sk,downloadPages,downloadBlog,downloadAttach):
 		out.write(startpage)
 
 	print('Backup finished successfully.')
-
-
-
-
