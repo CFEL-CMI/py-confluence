@@ -56,5 +56,5 @@ def createCMISpace(servername,user,spacekey,spacename):
 	#set new content according to tempate defined above
 	homepage["content"] = content
 
-	#upload content to server
+	#upload content to homepage
 	srv.confluence2.updatePage(token, homepage,{"versionComment": "updated Page according to template"})
