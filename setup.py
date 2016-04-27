@@ -30,5 +30,6 @@ setup(name="py-confluence",
       license             = "GPL",
       packages            = ['confluence'],
       scripts             = ['bin/confluence_create_CMI_space',
-                             'bin/confluence_static_archive'],
+                             'bin/confluence_static_archive',
+                             ],
       )
