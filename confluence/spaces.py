@@ -32,24 +32,18 @@ def addReadPermissions(token,srv,entity,spacekey):
 	srv.confluence2.addPermissionToSpace(token,"VIEWSPACE",entity,spacekey)
 
 def addWritePermissions(token,srv,entity,spacekey):
-	"""Adds the permissions VIEWSPACE,SETPAGEPERMISSIONS,EDITSPACE,COMMENT,CREATEATTACHMENT,EDITBLOG to a given entity (String of a confluence group or user)"""
-	srv.confluence2.addPermissionToSpace(token,"VIEWSPACE",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"SETPAGEPERMISSIONS",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"EDITSPACE",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"COMMENT",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"CREATEATTACHMENT",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"EDITBLOG",entity,spacekey)
+	"""Adds the permissions VIEWSPACE,EDITSPACE,COMMENT,CREATEATTACHMENT,EDITBLOG to a given entity (String of a confluence group or user)"""
+	permissions = ['VIEWSPACE','EDITSPACE','COMMENT','CREATEATTACHMENT','EDITBLOG']
+	for perm in permissions:
+		srv.confluence2.addPermissionToSpace(token,perm,entity,spacekey)
 
 def addAdminPermissions(token,srv,entity,spacekey):
 	"""Adds the administration permission to a given entity (String of a confluence group or user)"""
-	srv.confluence2.addPermissionToSpace(token,"VIEWSPACE",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"SETSPACEPERMISSIONS",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"EDITSPACE",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"COMMENT",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"CREATEATTACHMENT",entity,spacekey)
-	srv.confluence2.addPermissionToSpace(token,"EDITBLOG",entity,spacekey)
+	permissions = ['VIEWSPACE','SETSPACEPERMISSIONS','EDITSPACE','COMMENT','REMOVECOMMENT','CREATEATTACHMENT','REMOVEATTACHMENT','EDITBLOG','REMOVEPAGE','REMOVEBLOG','EXPORTSPACE','SETPAGEPERMISSIONS']
+	for perm in permissions:
+		srv.confluence2.addPermissionToSpace(token,perm,entity,spacekey)
 
-def createCMISpace(serverurl, user, spacekey, spacename, groupRead,groupWrite, userRead, userWrite):
+def createCMISpace(serverurl, user, spacekey, spacename, reads,writes,admins):
 	"""Creates a new space (required spacekey, name), sets the homepage according to the CMI template and sets space categories **cfel-cmi** and **cmi-elog-calendar**"""
 	
 	# Get Authentification Token
@@ -95,18 +89,22 @@ def createCMISpace(serverurl, user, spacekey, spacename, groupRead,groupWrite, u
 		print('ERROR:Exception raised while trying to upload new content for homepage.')
 
 	# Add permissions
-	for entity in groupRead:
+
+	for entity in reads:
 			addReadPermissions(token,srv,entity,spacekey) 
-	for entity in userRead:
-			addReadPermissions(token,srv,entity,spacekey) 
-	for entity in groupWrite:
+	for entity in writes:
 			addWritePermissions(token,srv,entity,spacekey) 
-	for entity in userWrite:
-			addWritePermissions(token,srv,entity,spacekey) 
-
-	#Add Jochen Kuepper as Admin by default		
-	addAdminPermissions(token,srv,"jkuepper",spacekey)
-
-
+	for entity in admins:
+			addAdminPermissions(token,srv,entity,spacekey) 
+	
+	#add link to space overview page
+	spaceoverview = srv.confluence2.getPage(token,"14421128")
+	content = spaceoverview["content"] 
+	spaceoverview["content"] = content[:-49]+'<ul><li><a href="/display/'+spacekey+'">'+spacename+'</a></li></ul></ac:layout-cell></ac:layout-section></ac:layout>'
+	# Upload content to server
+	if srv.confluence2.updatePage(token, spaceoverview,{"versionComment": "added link to newly created space (unsorted)"}):
+		print('Successfully updated space overview page')
+	else:
+		print('ERROR:Exception raised while trying to upload new content for space overview page (id 14421128).')
 
 
