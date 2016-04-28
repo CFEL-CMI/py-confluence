@@ -22,30 +22,50 @@ def main():
     parser.add_argument('--user', dest='user', default="jkuepper",help='Please enter your Username.    [default: jkuepper]')
     parser.add_argument('--key', dest='spacekey',required=True,help='Please enter the spaceKey of the space you want to create.')
     parser.add_argument('--name', dest='spacename',required=True,help='Please enter the spaceName of the space you want to create.')
-
-    #parser.add_argument('--readGroup', dest='readGroup', default="cmi-users",help='')
-    #parser.add_argument('--writeGroup', dest='writeGroup', default="",help='')
-    #parser.add_argument('--readUser', dest='readUser', default="",help='')
-    #parser.add_argument('--writeUser', dest='writeUser', default="jkuepper",help='')
+    parser.add_argument('--groupRead', dest='groupRead',help='enter a list of groups with READ access, seperated by a comma. [default:cmi-users]',default="cmi-users")
+    parser.add_argument('--groupWrite', dest='groupWrite', default="",help='enter a list of groups with WRITE access, seperated by a comma [default: none]')
+    parser.add_argument('--userRead', dest='userRead', default="",help='enter a list of users with READ access, seperated by a comma. [default:none]')
+    parser.add_argument('--userWrite', dest='userWrite', default="jkuepper",help='enter a list of users with WRITE access, seperated by a comma. [default: jkuepper]')
 
     args = parser.parse_args()
 
     if args.server[-1:] != "/":
         args.server+= "/"
 
+    groupRead  = list()
+    groupWrite = list()
+    userRead   = list()
+    userWrite  = list()
+
+    for group in args.groupRead.split(','):
+        if group != '':
+            groupRead.append(group)
+    for group in args.groupWrite.split(','):
+        if group != '':
+            groupWrite.append(group)
+    for user  in args.userRead.split(','):
+        if user != '':
+            userRead.append(user)
+    for user  in args.userWrite.split(','):
+        if user != '':
+            userWrite.append(user)
+
+    print('----------------------------------------------------------------------')
     print('IMPORTANT: Please make sure you have the permission to create a space!')
-    print("Please enter your password to confirm the following settings:")
-    print("Server address  :  " + args.server)
-    print("Username        :  " + args.user)
-    print("new Spacekey    :  " + args.spacekey)
-    print("new Spacename   :  " + args.spacename)
-        
-    #readGroup      = input("Comma separated list of GROUPS with READONLY access  [default: cmi-users]:  ") or "cmi-users"
-    #writeGroup     = input("Comma separated list of GROUPS with WRITE    access  [default: none]     :  ") or ""
-    #readUser       = input("Comma separated list of USERS  with READONLY access  [default: none]     :  ") or ""
-    #writeUser      = input("Comma separated list of USERS  with WRITE    access  [default: you]      :  ") or ""
-   
-    spaces.createCMISpace(args.server,args.user,args.spacekey,args.spacename)
+    print("Please confirm the following settings:")
+    print('----------------------------------------------------------------------')
+    print("   Server address           :  " + args.server)
+    print("   Username                 :  " + args.user)
+    print("   new Spacekey             :  " + args.spacekey)
+    print("   new Spacename            :  " + args.spacename)
+    print("   Groups with READ access  :  " + str(groupRead))
+    print("   Users  with READ access  :  " + str(userRead))
+    print("   Groups with WRITE access :  " + str(groupWrite))
+    print("   Users  with WRITE access :  " + str(userWrite))
+    print('----------------------------------------------------------------------')
+
+
+    spaces.createCMISpace(args.server,args.user,args.spacekey,args.spacename,groupRead,groupWrite,userRead,userWrite)
 
 
 if __name__ == "__main__":
