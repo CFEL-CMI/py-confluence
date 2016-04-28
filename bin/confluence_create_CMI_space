@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--groupRead', dest='groupRead',help='enter a list of groups with READ access, seperated by a comma. [default:cmi-users]',default="cmi-users")
     parser.add_argument('--groupWrite', dest='groupWrite', default="",help='enter a list of groups with WRITE access, seperated by a comma [default: none]')
     parser.add_argument('--userRead', dest='userRead', default="",help='enter a list of users with READ access, seperated by a comma. [default:none]')
-    parser.add_argument('--userWrite', dest='userWrite', default="jkuepper",help='enter a list of users with WRITE access, seperated by a comma. [default: jkuepper]')
+    parser.add_argument('--userWrite', dest='userWrite', default="jkuepper",help='enter a list of users with WRITE access, seperated by a comma. [default: none]')
 
     args = parser.parse_args()
 
@@ -62,6 +62,7 @@ def main():
     print("   Users  with READ access  :  " + str(userRead))
     print("   Groups with WRITE access :  " + str(groupWrite))
     print("   Users  with WRITE access :  " + str(userWrite))
+    print("   Users  with ADMIN access :    [jkuepper,") +args.user+"]"
     print('----------------------------------------------------------------------')
 
 

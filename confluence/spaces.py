@@ -32,7 +32,9 @@ def addReadPermissions(token,srv,entity,spacekey):
 	srv.confluence2.addPermissionToSpace(token,"VIEWSPACE",entity,spacekey)
 
 def addWritePermissions(token,srv,entity,spacekey):
-	"""Adds the permissions EDITSPACE,COMMENT,CREATEATTACHMENT,EDITBLOG to a given entity (String of a confluence group or user)"""
+	"""Adds the permissions VIEWSPACE,SETPAGEPERMISSIONS,EDITSPACE,COMMENT,CREATEATTACHMENT,EDITBLOG to a given entity (String of a confluence group or user)"""
+	srv.confluence2.addPermissionToSpace(token,"VIEWSPACE",entity,spacekey)
+	srv.confluence2.addPermissionToSpace(token,"SETPAGEPERMISSIONS",entity,spacekey)
 	srv.confluence2.addPermissionToSpace(token,"EDITSPACE",entity,spacekey)
 	srv.confluence2.addPermissionToSpace(token,"COMMENT",entity,spacekey)
 	srv.confluence2.addPermissionToSpace(token,"CREATEATTACHMENT",entity,spacekey)
@@ -40,7 +42,12 @@ def addWritePermissions(token,srv,entity,spacekey):
 
 def addAdminPermissions(token,srv,entity,spacekey):
 	"""Adds the administration permission to a given entity (String of a confluence group or user)"""
+	srv.confluence2.addPermissionToSpace(token,"VIEWSPACE",entity,spacekey)
 	srv.confluence2.addPermissionToSpace(token,"SETSPACEPERMISSIONS",entity,spacekey)
+	srv.confluence2.addPermissionToSpace(token,"EDITSPACE",entity,spacekey)
+	srv.confluence2.addPermissionToSpace(token,"COMMENT",entity,spacekey)
+	srv.confluence2.addPermissionToSpace(token,"CREATEATTACHMENT",entity,spacekey)
+	srv.confluence2.addPermissionToSpace(token,"EDITBLOG",entity,spacekey)
 
 def createCMISpace(serverurl, user, spacekey, spacename, groupRead,groupWrite, userRead, userWrite):
 	"""Creates a new space (required spacekey, name), sets the homepage according to the CMI template and sets space categories **cfel-cmi** and **cmi-elog-calendar**"""
