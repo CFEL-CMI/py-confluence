@@ -58,11 +58,11 @@ def main():
     print("   Username                 :  " + args.user)
     print("   new Spacekey             :  " + args.spacekey)
     print("   new Spacename            :  " + args.spacename)
-    print("   Groups with READ access  :  " + str(groupRead))
-    print("   Users  with READ access  :  " + str(userRead))
+    print("   Groups with READ  access :  " + str(groupRead))
+    print("   Users  with READ  access :  " + str(userRead))
     print("   Groups with WRITE access :  " + str(groupWrite))
     print("   Users  with WRITE access :  " + str(userWrite))
-    print("   Users  with ADMIN access :    [jkuepper,") +args.user+"]"
+    print("   Users  with ADMIN access :  [\'jkuepper\', \'" +args.user+"\']")
     print('----------------------------------------------------------------------')
 
 
