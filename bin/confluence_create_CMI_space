@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# Copyright (C) 2016 Alex Franke
+"""
+This python3 module creates a new space according to the CMI template.
+The CMI template includes a custom homepage, the space categories **cfel-cmi** and **cmi-elog-calendar**.
+You have to provide a servername and a user with rights to create a new space.
+Additional settings like the spacekey and name of the new space are required.
+"""
+
+from confluence import spaces
+import argparse
+
+def main():
+    """
+    Init of creating a new space accoring to CMI template.
+    """
+
+    parser = argparse.ArgumentParser(description='This python3 module creates a new space according to the CMI template. The CMI template includes a custom homepage, the space categories **cfel-cmi** and **cmi-elog-calendar**.You have to provide a servername and a user with rights to create a new space.Additional settings like the spacekey and name of the new space are required.')
+    parser.add_argument('--server', dest='server', default="https://confluence.desy.de/",help='Server address [default: https://confluence.desy.de/]')
+    parser.add_argument('--user', dest='user', default="jkuepper",help='Please enter your Username.    [default: jkuepper]')
+    parser.add_argument('--key', dest='spacekey',required=True,help='Please enter the spaceKey of the space you want to create.')
+    parser.add_argument('--name', dest='spacename',required=True,help='Please enter the spaceName of the space you want to create.')
+    parser.add_argument('--read', dest='read',help='enter a list of user and/or groups with READ access, seperated by a comma. [default:cmi-users]',default="cmi-users")
+    parser.add_argument('--write', dest='write', default="",help='enter a list of users and/or groups with WRITE access, seperated by a comma [default: none]')
+    parser.add_argument('--admin', dest='admin', default="jkuepper",help='enter a list of users and/or groups with ADMIN access, seperated by a comma. [default: jkuepper]')
+
+    args = parser.parse_args()
+
+    if args.server[-1:] != "/":
+        args.server+= "/"
+
+    reads  = list()
+    writes = list()
+    admins = list()
+
+    for entity in args.read.split(','):
+        if entity != '':
+            reads.append(entity)
+    for entity in args.write.split(','):
+        if entity != '':
+            writes.append(entity)
+    for entity in args.admin.split(','):
+        if entity != '':
+            admins.append(entity)
+    # Add Jochen Kuepper as Admin by default        
+    admins.append('jkuepper')
+
+    print('----------------------------------------------------------------------')
+    print('IMPORTANT: Please make sure you have the permission to create a space!')
+    print("Please confirm the following settings:")
+    print('----------------------------------------------------------------------')
+    print("   Server address                 :  " + args.server)
+    print("   Username                       :  " + args.user)
+    print("   new Spacekey                   :  " + args.spacekey)
+    print("   new Spacename                  :  " + args.spacename)
+    print("   Users/Groups READ  permission  :  " + str(reads))
+    print("   Users/Groups WRITE permission  :  " + str(writes))
+    print("   Users/Groups ADMIN permission  :  " + str(admins))
+    print('----------------------------------------------------------------------')
+
+
+    spaces.createCMISpace(args.server,args.user,args.spacekey,args.spacename,reads,writes,admins)
+
+
+if __name__ == "__main__":
+    main()
