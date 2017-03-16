@@ -45,9 +45,11 @@ def main():
 	servername     = args.server
 	user           = args.user
 	sk             = args.key
-	downloadPages  = False
+	downloadPages  = args.pages
 	downloadBlog   = args.blog
 	downloadAttach = args.attachments
+
+
 	
 	print ("Please enter the password for User " + user)
 	pwd     = getpass.getpass()
@@ -60,14 +62,15 @@ def main():
 	if not os.path.exists(dirname):
 		repo_dir = os.path.join(script_dir, dirname)
 		r = git.Repo.init(repo_dir)
-		#bare_repo = Repo.init(os.path.join(script_dir, dirname), bare=True)
-		#assert bare_repo.bare
+
 		os.mkdir(dirname+'/assets')
 		os.mkdir(dirname+'/attachments')
 		os.mkdir(dirname+'/pages')
+		os.mkdir(dirname+'/blogs')
 	else:
 		r = git.Repo(os.path.join(script_dir, dirname))	
 		assert not r.bare
+
 
 	#Get space info
 	spaceinfo = srv.confluence2.getSpace(token,sk)
@@ -117,7 +120,7 @@ def main():
 			commentHTML =""
 			#print(comments)
 			for comment in comments:
-				commentHTML += "<div><hr><h4>"+comment["creator"]+'</h4><p><i>'+str(comment["created"])+'</i></p>'+comment["content"]
+				commentHTML += "<div><hr><h4>"+comment["creator"]+'</h4><p><i>'+str(comment["created"])+'</i></p>'+comment["content"]+'</div>'
 			pagemeta = srv.confluence2.getPage(token,page["id"])
 			anchestors = srv.confluence2.getAncestors(token,page["id"])
 			anchestorsJS = ""
@@ -147,7 +150,6 @@ def main():
 
 	if downloadBlog:
 		print('Saving blog')
-		os.mkdir(dirname+'/blogs')
 		blogs = srv.confluence2.getBlogEntries(token,sk)
 		
 		blogscount = str(len(blogs))
@@ -162,7 +164,8 @@ def main():
 			yearmonthDict[str(blog["publishDate"])[0:6]].append(blog) #fill default dict
 		#sort months
 		yearmonthDictSrt = OrderedDict(sorted(yearmonthDict.items()))
-		yearmonthDictSrtIt = list(yearmonthDictSrt.items()).reverse()
+		yearmonthDictSrtIt = list(yearmonthDictSrt.items())
+		yearmonthDictSrtIt.reverse()
 
 		#iterate over every year/month combination and sort the blogs with OrderedDict
 		for yearmonth,yearmonthEntry in yearmonthDictSrtIt:
@@ -217,9 +220,15 @@ def main():
 	with open(os.path.join(script_dir, dirname+'/start-here.html'), "a",encoding="utf-8") as out:
 		out.write(startpage)
 
-
+	#save backup time
+	print('creating backuptime file in unixtimeformat')
+	with open(os.path.join(script_dir, dirname+'/backuptime.txt'), "w",encoding="utf-8") as timefile:
+		timefile.write(str(time.time()))
+	
 	#add all files to the git repo
+	print('add all files to git repo')
 	r.git.add(update=True)
+	print('Commiting changes to git repo')
 	r.index.commit("space backup of " + str(datetime.datetime.now()))
 	print('Backup finished successfully.')
 
@@ -271,6 +280,9 @@ def recursivePagetreeHTML(srv,token,parents,i):
 def getConfAttachments(srv,token,contentid,dirname):
 	attachments = srv.confluence2.getAttachments(token,contentid)
 	attachHTML = ""
+
+	
+	
 	if attachments:
 		attachHTML+= '<div style="background-color: #DDD; border: 1px silver ridge; padding: 5px;"><b>Attachments</b><ul>'
 		for attachment in attachments:
@@ -278,10 +290,35 @@ def getConfAttachments(srv,token,contentid,dirname):
 			if not os.path.exists(directoryname):
 				os.mkdir(directoryname)
 			attachPath = '/attachments/'+ contentid+'/'+attachment["fileName"]
-			with open(os.path.join(script_dir, dirname+ attachPath),"wb") as out_file:
-				print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
-				attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
-				out_file.write(attbytes)
+
+			#check if file has changes since last backup
+			url = attachment["url"]
+			urlpos = url.find('modificationDate')+17
+			modDate = url[urlpos:urlpos+10]
+			timefileloc = os.path.join(script_dir, dirname+'/backuptime.txt')
+
+			#if this is a refresh of an old backup
+			if (os.path.isfile(timefileloc)):
+				with open(timefileloc, "r",encoding="utf-8") as timefile:
+					lastbackuptime = timefile.read()
+					#if server file newer than last backup
+					if (int(modDate) > int(float(lastbackuptime)) or not (os.path.isfile(os.path.join(script_dir, dirname+ attachPath)))):
+						#then download new version
+						with open(os.path.join(script_dir, dirname+ attachPath),"wb") as out_file:
+							print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
+							attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
+							out_file.write(attbytes)
+					else:
+						print('Skipping '+attachment["fileName"]+' for contentid '+contentid + ' (not updated since last backup)')
+
+			#first time backing up space, so no backuptime file present
+			else:
+				#load attachment
+				with open(os.path.join(script_dir, dirname+ attachPath),"wb") as out_file:
+							print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
+							attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
+							out_file.write(attbytes)
+
 			attachHTML+='<li><a href="..'+attachPath+'">'+attachment["fileName"]+'</a></li>'
 		attachHTML +='</ul></div>'
 	return attachHTML
