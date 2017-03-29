@@ -21,8 +21,13 @@ import getpass
 from pprint import pprint
 
 import git
+from xml.sax.saxutils import escape, unescape
+import multiprocessing as mp
 
-
+def foo_pool(x):
+	print ("Working in Process #%d" % (os.getpid()))
+	time.sleep(0.6)
+	return x*x
 
 
 def main():
@@ -113,37 +118,13 @@ def main():
 
 		pagetreeHTML = recursivePagetreeHTML(srv,token,parents,"0")
 
-		for count, page in enumerate(pages, start=1):
+		pool = mp.Pool(processes=len(pages))     
+		for page in pages:    
+			pool.apply_async(loadpage, args = (srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog, ))
+			#pool.apply_async(foo_pool, args = (1, ))
 
-			pagepath = dirname+'/pages/'+page["id"]+'.html'
-			comments = srv.confluence2.getComments(token,page["id"])
-			commentHTML =""
-			#print(comments)
-			for comment in comments:
-				commentHTML += "<div><hr><h4>"+comment["creator"]+'</h4><p><i>'+str(comment["created"])+'</i></p>'+comment["content"]+'</div>'
-			pagemeta = srv.confluence2.getPage(token,page["id"])
-			anchestors = srv.confluence2.getAncestors(token,page["id"])
-			anchestorsJS = ""
-			for anchestor in anchestors:
-				anchestorsJS += anchestor["id"] + ','
-			anchestorsJS = anchestorsJS[:-1]
-
-			#downloading Attachments of page
-			attachHTML = ""
-			if downloadAttach:
-				attachHTML = getConfAttachments(srv,token,page["id"],dirname)
-				
-
-			with open(os.path.join(script_dir, pagepath), "wt",encoding="utf-8") as out_file:
-				print("("+str(count)+"/"+pagescount+") writing page "+ page["id"])
-				pageheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+page["title"]+'</title><script language="javascript" type="text/javascript" src="../assets/main.js"></script><link rel="stylesheet" href="../assets/main.css"></head>'
-				pageheader += '<body onload="openTree()" pageid="'+page["id"]+'"><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+spaceinfo["name"]+'</i></h3><p><i>saved '+str(datetime.datetime.today())+'</i></p></div><div><a href="../blogs/'+lastblog+'.html"><span id="gotospan">go&nbsp;to&nbsp;blog</span></a></div></div><div id="pagetree" style="padding:0 10px;"><h3 style="color:Crimson">PAGES</h3>'+pagetreeHTML+'</div></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+page["title"]+' (<a href="'+page["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(pagemeta["created"])[0:4]+'-'+str(pagemeta["created"])[4:6]+'-'+str(pagemeta["created"])[6:8]+' '+str(pagemeta["created"])[9:]+' by '+pagemeta["creator"]+'</h5>'
-				pagefooter = '</div></body></html>'
-				#modify links within pagehtml
-				contenthtml = saveConfluenceContent(srv,token,page["id"]).replace('="/download/attachments','="../attachments')
-				contenthtml = contenthtml.replace('/pages/viewpage.action\?pageId=([1-9]*)','../pages/\1.html')
-				out_file.write(pageheader+attachHTML+contenthtml+commentHTML+pagefooter)
-
+		pool.close()
+		pool.join()
 
 
 
@@ -180,7 +161,7 @@ def main():
 			#finally output sorted html for every month
 			blogtreeHTML += '<tr><th colspan="2">'+monthnames[int(yearmonth[4:6])-1] +' '+ yearmonth[0:4]+'</th></tr>'
 			for blogdate, blog in srtBlogsIt:
-				blogtreeHTML += '<tr><td>'+blogdate[6:8]+'.</td><td><a href="../blogs/'+blog["id"]+'.html">'+blog["title"]+'</a></td></tr>'
+				blogtreeHTML += '<tr><td>'+blogdate[6:8]+'.</td><td><a href="../blogs/'+blog["id"]+'.html">'+html_escape(blog["title"])+'</a></td></tr>'
 
 		blogtreeHTML += "</table></body>"
 		with open(os.path.join(script_dir, dirname+'/assets/blogtree.html'), "wt",encoding="utf-8") as out_file:
@@ -194,7 +175,7 @@ def main():
 			commentHTML =""
 			#print(comments)
 			for comment in comments:
-				commentHTML += "<div><hr><h4>"+comment["creator"]+'</h4><p><i>'+str(comment["created"])+'</i></p>'+comment["content"]
+				commentHTML += "<div><hr><h4>"+html_escape(comment["creator"])+'</h4><p><i>'+str(comment["created"])+'</i></p>'+comment["content"]
 			#downloading Attachments of page
 			attachHTML = ""
 			if downloadAttach:
@@ -202,7 +183,7 @@ def main():
 
 			with open(os.path.join(script_dir, blogpath), "wt",encoding="utf-8") as out_file:
 				print("("+str(count)+"/"+blogscount+") writing blog entry "+ blog["id"])
-				blogheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="../assets/main.css"><script language="javascript" type="text/javascript" src="../assets/main.js"></script><title>'+blog["title"]+'</title></head><body><div id="sidebar"><object type="text/html" data="../assets/blogtree.html"></object></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+blog["title"]+' (<a href="'+blog["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(blog["publishDate"])[0:4]+'-'+str(blog["publishDate"])[4:6]+'-'+str(blog["publishDate"])[6:8]+' '+str(blog["publishDate"])[9:]+' by '+blog["author"]+'</h5>'
+				blogheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="../assets/main.css"><script language="javascript" type="text/javascript" src="../assets/main.js"></script><title>'+html_escape(blog["title"])+'</title></head><body><div id="sidebar"><object type="text/html" data="../assets/blogtree.html"></object></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+html_escape(blog["title"])+' (<a href="'+blog["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(blog["publishDate"])[0:4]+'-'+str(blog["publishDate"])[4:6]+'-'+str(blog["publishDate"])[6:8]+' '+str(blog["publishDate"])[9:]+' by '+html_escape(blog["author"])+'</h5>'
 				blogfooter = '</div></body></html>'
 
 				#modify links within html
@@ -241,6 +222,49 @@ def auth(user,pwd,srv):
 	finally:
 		return srv.confluence2.login(user, pwd)
 
+# escape() and unescape() takes care of &, < and >.
+html_escape_table = {
+    '"': "&quot;",
+    "'": "&apos;"
+}
+
+def html_escape(text):
+    return escape(text, html_escape_table)
+
+def loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog):
+	print(page["id"])
+	pagepath = dirname+'/pages/'+page["id"]+'.html'
+	comments = srv.confluence2.getComments(token,page["id"])
+	commentHTML =""
+	#print(comments)
+	for comment in comments:
+		commentHTML += "<div><hr><h4>"+html_escape(comment["creator"])+'</h4><p><i>'+html_escape(str(comment["created"]))+'</i></p>'+comment["content"]+'</div>'
+	pagemeta = srv.confluence2.getPage(token,page["id"])
+	anchestors = srv.confluence2.getAncestors(token,page["id"])
+	anchestorsJS = ""
+	for anchestor in anchestors:
+		anchestorsJS += anchestor["id"] + ','
+	anchestorsJS = anchestorsJS[:-1]
+
+	#downloading Attachments of page
+	attachHTML = ""
+	if downloadAttach:
+		attachHTML = getConfAttachments(srv,token,page["id"],dirname)
+		
+
+	with open(os.path.join(script_dir, pagepath), "wt",encoding="utf-8") as out_file:
+		print("("+str(count)+"/"+pagescount+") writing page "+ page["id"])
+		pageheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+html_escape(page["title"])+'</title><script language="javascript" type="text/javascript" src="../assets/main.js"></script><link rel="stylesheet" href="../assets/main.css"></head>'
+		pageheader += '<body onload="openTree()" pageid="'+page["id"]+'"><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+html_escape(spaceinfo["name"])+'</i></h3><p><i>saved '+html_escape(str(datetime.datetime.today()))+'</i></p></div><div><a href="../blogs/'+lastblog+'.html"><span id="gotospan">go&nbsp;to&nbsp;blog</span></a></div></div><div id="pagetree" style="padding:0 10px;"><h3 style="color:Crimson">PAGES</h3>'+pagetreeHTML+'</div></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+html_escape(page["title"])+' (<a href="'+page["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(pagemeta["created"])[0:4]+'-'+str(pagemeta["created"])[4:6]+'-'+str(pagemeta["created"])[6:8]+' '+str(pagemeta["created"])[9:]+' by '+html_escape(pagemeta["creator"])+'</h5>'
+		pagefooter = '</div></body></html>'
+		#modify links within pagehtml
+		contenthtml = saveConfluenceContent(srv,token,page["id"]).replace('="/download/attachments','="../attachments')
+		contenthtml = contenthtml.replace('/pages/viewpage.action\?pageId=([1-9]*)','../pages/\1.html')
+		out_file.write(pageheader+attachHTML+contenthtml+commentHTML+pagefooter)
+	return "finished page " + page["id"]
+
+def loadpageComplete(result):
+	print (str(result))
 
 #returns the content of the given id in plain html wrapped by a <div>
 def saveConfluenceContent(srv,token,id):
@@ -265,13 +289,13 @@ def recursivePagetreeHTML(srv,token,parents,i):
 		#if current element has children 
 		if ele in parents:
 			html += '<a class="arrow" onclick="showChildren(this)" href="#">&rarr;</a>'
-			html += '<a class="pagelink" href="'+elehtml["id"]+'.html">'+elehtml["title"]+'</a>'
+			html += '<a class="pagelink" href="'+elehtml["id"]+'.html">'+html_escape(elehtml["title"])+'</a>'
 			#recursively insert children
 			html += recursivePagetreeHTML(srv,token,parents,ele)
 		#current element has no children 
 		else:
 			html += '<a class="dot">&middot;</a>'
-			html += '<a class="pagelink" href="'+elehtml["id"]+'.html">'+elehtml["title"]+'</a>'
+			html += '<a class="pagelink" href="'+elehtml["id"]+'.html">'+html_escape(elehtml["title"])+'</a>'
 
 		html += "</li></ul>"
 
