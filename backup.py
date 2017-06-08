@@ -5,6 +5,12 @@
 # This script will generate a local and readable
 # HTML backup of a Confluence space within a new folder 
 
+#TODOS
+
+# async page / blog loading
+# do not abort if user has insuffcient permissions or atleast generate start page anyway
+# only update if page/blog has changed since last sync. Attachments already work this way.
+
 import os
 import datetime
 import time
@@ -120,7 +126,8 @@ def main():
 
 		pool = mp.Pool(processes=len(pages))     
 		for page in pages:    
-			pool.apply_async(loadpage, args = (srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog, ))
+			#pool.apply_async(loadpage, args = (srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog, ))
+			loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog)
 			#pool.apply_async(foo_pool, args = (1, ))
 
 		pool.close()
@@ -253,7 +260,7 @@ def loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spacein
 		
 
 	with open(os.path.join(script_dir, pagepath), "wt",encoding="utf-8") as out_file:
-		print("("+str(count)+"/"+pagescount+") writing page "+ page["id"])
+		print("writing page "+ page["id"])
 		pageheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+html_escape(page["title"])+'</title><script language="javascript" type="text/javascript" src="../assets/main.js"></script><link rel="stylesheet" href="../assets/main.css"></head>'
 		pageheader += '<body onload="openTree()" pageid="'+page["id"]+'"><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+html_escape(spaceinfo["name"])+'</i></h3><p><i>saved '+html_escape(str(datetime.datetime.today()))+'</i></p></div><div><a href="../blogs/'+lastblog+'.html"><span id="gotospan">go&nbsp;to&nbsp;blog</span></a></div></div><div id="pagetree" style="padding:0 10px;"><h3 style="color:Crimson">PAGES</h3>'+pagetreeHTML+'</div></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+html_escape(page["title"])+' (<a href="'+page["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(pagemeta["created"])[0:4]+'-'+str(pagemeta["created"])[4:6]+'-'+str(pagemeta["created"])[6:8]+' '+str(pagemeta["created"])[9:]+' by '+html_escape(pagemeta["creator"])+'</h5>'
 		pagefooter = '</div></body></html>'
