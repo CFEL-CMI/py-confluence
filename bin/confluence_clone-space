@@ -78,12 +78,12 @@ def main():
     if not os.path.exists(dirname):
         repo_dir = os.path.join(os.getcwd(), dirname)
         r = git.Repo.init(repo_dir)
-        os.mkdir(os.path.join(dirname, '/assets'))
-        os.mkdir(dirname+'/attachments')
-        os.mkdir(dirname+'/pages')
-        os.mkdir(dirname+'/blogs')
+        os.mkdir(os.path.join(repo_dir, 'assets'))
+        os.mkdir(os.path.join(repo_dir, 'attachments'))
+        os.mkdir(os.path.join(repo_dir, 'pages'))
+        os.mkdir(os.path.join(repo_dir, 'blogs'))
     else:
-        r = git.Repo(os.path.join(script_dir, dirname))
+        r = git.Repo(os.path.join(os.getcwd(), dirname))
         assert not r.bare
     ### END git repo
 
@@ -102,9 +102,9 @@ def main():
     ### END Get space info, homepage id, newest blog id
 
     ### BEGIN assets for html
-    with open(os.path.join(script_dir, dirname+'/assets/main.css'), "wt",encoding="utf-8") as css:
+    with open(os.path.join(os.getcwd(), dirname+'/assets/main.css'), "wt",encoding="utf-8") as css:
         css.write('.blogtree a, .blogtree a:link { color: seashell;}#sidebar object{position:absolute;height:100%;width:100%}#gotospan{padding:2px 10px; border:1px #83B7D9 solid; color:seashell!important} #sidebar{position:fixed;top:0;bottom:0;left:0;overflow:scroll; width:20em;background-color:#404040}#sidebarheader{background-color:#2980B9; padding:10px 20px; text-align:center;}.blogtree{color:#2980B9} li.active > a { color: Crimson}#sidebar::-webkit-scrollbar { display: none;} html,body{font-family:sans-serif; margin:0; padding:0;height:100%}.pagetree{color:seashell} a,a:link{text-decoration:none; color:Crimson}a:hover{text-decoration:underline}#pagetree ul{list-style-type: none}a.pagelink:hover,.arrow:hover{text-decoration: underline}a.arrow, a.dot{font-family: monospace; font-size: 20px;text-decoration: none; color:seashell} a.pagelink{color: seashell; padding-left: 5px;text-decoration:none}.confluenceTable{border-collapse:collapse;}.confluenceTh, .confluenceTd {    border: 1px solid #ddd; padding: 7px 10px; vertical-align: top; text-align: left;}.confluenceTh{background-color:#f0f0f0;}')
-    with open(os.path.join(script_dir, dirname+'/assets/main.js'), "wt",encoding="utf-8") as js:
+    with open(os.path.join(os.getcwd(), dirname+'/assets/main.js'), "wt",encoding="utf-8") as js:
         js.write('function findUpTag(n,e){for(;n.parentNode;)if(n=n.parentNode,n.tagName===e)return n;return null} function showChildren(ele){var children=ele.parentElement.childNodes; for (var i=0; i < children.length; i++){if (children[i].nodeName.toLowerCase()=="ul"){children[i].style.display="block";}}ele.setAttribute("onclick","hideChildren(this)"); ele.innerHTML="&darr;";}function hideChildren(ele){var children=ele.parentElement.childNodes; for (var i=0; i < children.length; i++){if (children[i].nodeName.toLowerCase()=="ul"){children[i].style.display="none";}}ele.setAttribute("onclick","showChildren(this)"); ele.innerHTML="&rarr;";}function openTree(){var e=document.body.getAttribute("pageid"),t=document.getElementById(e);for(t.firstElementChild.children.length>2&&showChildren(t.firstElementChild.firstElementChild),t.firstElementChild.className+=" active";findUpTag(t,"UL");)showChildren(findUpTag(t,"UL").firstElementChild.firstElementChild),t=findUpTag(t,"UL")}')
     ### END assets for html
 
@@ -127,11 +127,11 @@ def main():
         pagetreeHTML = recursivePagetreeHTML(srv,token,parents,"0")
 
         #with concurrent.futures.ThreadPoolExecutor(max_workers=pproc) as executor:
-        #   futures = [executor.submit(loadpage, {srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo["name"],pagetreeHTML,lastblog}) for page in pages]
+        #   futures = [executor.submit(loadpage, {srv,token,dirname,page,downloadAttach,os.getcwd(),pagescount,spaceinfo["name"],pagetreeHTML,lastblog}) for page in pages]
         #   for future in concurrent.futures.as_completed(futures):
         #       print("finished page")
         for page in pages:
-            print (loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo["name"],pagetreeHTML,lastblog))
+            print(loadpage(srv, token, dirname, page, downloadAttach, pagescount, spaceinfo["name"], pagetreeHTML, lastblog))
     ### END download of pages
 
     ### BEGIN download of blogposts
@@ -172,7 +172,7 @@ def main():
                 blogtreeHTML += '<tr><td>'+blogdate[6:8]+'.</td><td><a href="../blogs/'+blog["id"]+'.html">'+html_escape(blog["title"])+'</a></td></tr>'
 
         blogtreeHTML += "</table></body>"
-        with open(os.path.join(script_dir, dirname+'/assets/blogtree.html'), "wt",encoding="utf-8") as out_file:
+        with open(os.path.join(os.getcwd(), dirname+'/assets/blogtree.html'), "wt",encoding="utf-8") as out_file:
             out_file.write(blogtreeHTML)
         ##END blog sidebar tree
 
@@ -189,7 +189,7 @@ def main():
             if downloadAttach:
                 attachHTML = getConfAttachments(srv,token,blog["id"],dirname)
 
-            with open(os.path.join(script_dir, blogpath), "wt",encoding="utf-8") as out_file:
+            with open(os.path.join(os.getcwd(), blogpath), "wt",encoding="utf-8") as out_file:
                 print("("+str(count)+"/"+blogscount+") writing blog entry "+ blog["id"])
                 blogheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="../assets/main.css"><script language="javascript" type="text/javascript" src="../assets/main.js"></script><title>'+html_escape(blog["title"])+'</title></head><body><div id="sidebar"><object type="text/html" data="../assets/blogtree.html"></object></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+html_escape(blog["title"])+' (<a href="'+blog["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(blog["publishDate"])[0:4]+'-'+str(blog["publishDate"])[4:6]+'-'+str(blog["publishDate"])[6:8]+' '+str(blog["publishDate"])[9:]+' by '+html_escape(blog["author"])+'</h5>'
                 blogfooter = '</div></body></html>'
@@ -206,12 +206,12 @@ def main():
     print('creating start-here page')
 
     startpage = '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=pages/'+homepage+'.html"></head><body><p>Please visit <a href="pages/'+homepage+'.html">this page</a></p></body></html>'
-    with open(os.path.join(script_dir, dirname+'/start-here.html'), "a",encoding="utf-8") as out:
+    with open(os.path.join(os.getcwd(), dirname+'/start-here.html'), "a",encoding="utf-8") as out:
         out.write(startpage)
 
     #save backup time
     print('creating backuptime file in unixtimeformat')
-    with open(os.path.join(script_dir, dirname+'/backuptime.txt'), "w",encoding="utf-8") as timefile:
+    with open(os.path.join(os.getcwd(), dirname+'/backuptime.txt'), "w",encoding="utf-8") as timefile:
         timefile.write(str(time.time()))
 
     #add all files to the git repo
@@ -240,9 +240,22 @@ def html_escape(text):
     }
     return escape(text, html_escape_table)
 
-### loadpage(server,authentification token, local backup directory, array with page info, boolean if attachments should be downloaded, root folder of script, int number of pages, string spacename, string pagetree, int id of last blog)
-### Function to load a page with given id, todo: async call for multithreaded loading
-def loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spacename,pagetreeHTML,lastblog):
+
+
+def loadpage(srv, token, dirname, page, downloadAttach, pagescount, spacename, pagetreeHTML, lastblog):
+    """Load page
+
+    server
+    authentification token
+    local backup directory,
+    array with page info,
+    boolean if attachments should be downloaded,
+    int number of pages,
+    string spacename,
+    string pagetree,
+    int id of last blog
+ Function to load a page with given id, todo: async call for multithreaded loading
+"""
 
     ### path to local backup html. For every page a new file is created in the folder /pages/. The name is given by the content id and the file extension .html. This is to make sure this backup works on every filesystem and has no weird symbols or spaces in its filename.
     pagepath = dirname+'/pages/'+page["id"]+'.html'
@@ -270,17 +283,17 @@ def loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spacena
     ###END attachments
 
     ###BEGIN content of page
-    timefileloc = os.path.join(script_dir, dirname+'/backuptime.txt')
+    timefileloc = os.path.join(os.getcwd(), dirname+'/backuptime.txt')
     if (os.path.isfile(timefileloc)):
         with open(timefileloc, "r",encoding="utf-8") as timefile:
             lastbackuptime = timefile.read()
             #if server file newer than last backup
-            if ((pagemeta["modified"] > datetime.datetime.fromtimestamp(float(lastbackuptime))) or not (os.path.isfile(os.path.join(script_dir, pagepath)))):
-                writePage(srv,token,script_dir,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML)
+            if ((pagemeta["modified"] > datetime.datetime.fromtimestamp(float(lastbackuptime))) or not (os.path.isfile(os.path.join(os.getcwd(), pagepath)))):
+                writePage(srv, token, pagepath, page, spacename, lastblog, pagemeta, attachHTML, commentHTML, pagetreeHTML)
             else:
                 print (page["id"]+ ": Content not changed since last backup. Skipping")
     else:
-        writePage(srv,token,script_dir,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML)
+        writePage(srv, token, pagepath, page, spacename, lastblog, pagemeta, attachHTML, commentHTML, pagetreeHTML)
 
     ###END content of page
 
@@ -349,21 +362,21 @@ def getConfAttachments(srv,token,contentid,dirname):
             urlpos = url.find('modificationDate')+17
             modDate = url[urlpos:urlpos+10]
             # last backuptime is saved with backuptime.txt
-            timefileloc = os.path.join(script_dir, dirname+'/backuptime.txt')
+            timefileloc = os.path.join(os.getcwd(), dirname+'/backuptime.txt')
 
             #if this is a refresh of an old backup
             if (os.path.isfile(timefileloc)):
                 with open(timefileloc, "r",encoding="utf-8") as timefile:
                     lastbackuptime = timefile.read()
                     #if server file newer than last backup
-                    if (int(modDate) > int(float(lastbackuptime)) or not (os.path.isfile(os.path.join(script_dir, dirname+ attachPath)))):
-                        writeAttachment(srv,script_dir,dirname,attachPath,attachment,contentid,token)
+                    if (int(modDate) > int(float(lastbackuptime)) or not (os.path.isfile(os.path.join(os.getcwd(), dirname+ attachPath)))):
+                        writeAttachment(srv,dirname,attachPath,attachment,contentid,token)
                     else:
                         print('Skipping '+attachment["fileName"]+' for contentid '+contentid + ' (not updated since last backup)')
 
             #first time backing up space, so no backuptime file present
             else:
-                writeAttachment(srv,script_dir,dirname,attachPath,attachment,contentid,token)
+                writeAttachment(srv,dirname,attachPath,attachment,contentid,token)
 
             #create link to attachment
             attachHTML+='<li><a href="..'+attachPath+'">'+attachment["fileName"]+'</a></li>'
@@ -372,8 +385,8 @@ def getConfAttachments(srv,token,contentid,dirname):
         attachHTML +='</ul></div>'
     return attachHTML
 
-def writePage(srv,token,script_dir,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML):
-    with open(os.path.join(script_dir, pagepath), "wt",encoding="utf-8") as out_file:
+def writePage(srv,token,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML):
+    with open(os.path.join(os.getcwd(), pagepath), "wt",encoding="utf-8") as out_file:
             pageheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+html_escape(page["title"])+'</title><script language="javascript" type="text/javascript" src="../assets/main.js"></script><link rel="stylesheet" href="../assets/main.css"></head>'
             pageheader += '<body onload="openTree()" pageid="'+page["id"]+'"><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+html_escape(spacename)+'</i></h3><p><i>saved '+html_escape(str(datetime.datetime.today()))+'</i></p></div><div><a href="../blogs/'+lastblog+'.html"><span id="gotospan">go&nbsp;to&nbsp;blog</span></a></div></div><div id="pagetree" style="padding:0 10px;"><h3 style="color:Crimson">PAGES</h3>'+pagetreeHTML+'</div></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+html_escape(page["title"])+' (<a href="'+page["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(pagemeta["created"])[0:4]+'-'+str(pagemeta["created"])[4:6]+'-'+str(pagemeta["created"])[6:8]+' '+str(pagemeta["created"])[9:]+' by '+html_escape(pagemeta["creator"])+'</h5>'
             pagefooter = '</div></body></html>'
@@ -382,8 +395,8 @@ def writePage(srv,token,script_dir,pagepath,page,spacename,lastblog,pagemeta,att
             contenthtml = contenthtml.replace('/pages/viewpage.action\?pageId=([1-9]*)','../pages/\1.html')
             out_file.write(pageheader+attachHTML+contenthtml+commentHTML+pagefooter)
 
-def writeAttachment(srv,script_dir,dirname,attachPath,attachment,contentid,token):
-    with open(os.path.join(script_dir, dirname+ attachPath),"wb") as out_file:
+def writeAttachment(srv,dirname,attachPath,attachment,contentid,token):
+    with open(os.path.join(os.getcwd(), dirname+ attachPath),"wb") as out_file:
         print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
         attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
         out_file.write(attbytes)
@@ -394,5 +407,4 @@ def foo_pool(x):
     return x*x
 
 if __name__ == "__main__":
-    script_dir = os.path.dirname(__file__)
     main()
