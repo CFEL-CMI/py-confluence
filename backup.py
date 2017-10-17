@@ -1,3 +1,8 @@
+# -*- coding: utf-8; fill-column: 120 -*-		
+#		
+# Copyright (C) 2016 Alex Franke
+
+
 #!/usr/bin/python3
 
 # backup.py
@@ -9,7 +14,7 @@
 
 # async page / blog loading
 # do not abort if user has insuffcient permissions or atleast generate start page anyway
-# only update if page/blog has changed since last sync. Attachments already work this way.
+# only update if blog post has changed since last sync. Attachments/pages already work this way.
 
 import os
 import datetime
@@ -28,25 +33,24 @@ from pprint import pprint
 
 import git
 from xml.sax.saxutils import escape, unescape
-import multiprocessing as mp
+import concurrent.futures
 
-def foo_pool(x):
-	print ("Working in Process #%d" % (os.getpid()))
-	time.sleep(0.6)
-	return x*x
+
 
 
 def main():
 	
+	### BEGIN command line arguments 
 	parser = argparse.ArgumentParser(description='This python3 module creates a local confluence backup of a specified space. The backup is accessible without any confluence installation as the output is purely html/css.')
 	parser.add_argument('--server', dest='server', default="https://confluence.desy.de/",help='Server address [default: https://confluence.desy.de/]')
 	parser.add_argument('--user', dest='user', default="afrankAdmin",help='Please enter your Username.    [default: jkuepper]')
 	parser.add_argument('--key', dest='key',required=True,help='Please enter the spaceKey of the space you want to backup.')
 	parser.add_argument('--no-attachments', dest='attachments',action='store_false',help='No attachments are downloaded')
+	parser.add_argument('--threads', dest='pproc',default=10,help='maximum allowed threads to download pages/blogs. Limited mainly by max http requests to server.')
 	parser.set_defaults(attachments=True)
 	parser.add_argument('--no-pages', dest='pages', action='store_false',help='No pages are downloaded')
 	parser.set_defaults(pages=True)
-	parser.add_argument('--no-blog', dest='blog', action='store_false',help='No blog posts are downloaded')
+	parser.add_argument('--no-blog', dest='blog', action='store_false',help='No blog posts are downloadingded')
 	parser.set_defaults(blog=True)
 
 	args = parser.parse_args()
@@ -59,17 +63,22 @@ def main():
 	downloadPages  = args.pages
 	downloadBlog   = args.blog
 	downloadAttach = args.attachments
-
-
+	pproc          = args.pproc
+	### END command line arguments
 	
+	### BEGIN settings for connection to server 
 	print ("Please enter the password for User " + user)
 	pwd     = getpass.getpass()
 	srv     = xmlrpc.client.ServerProxy(servername+'rpc/xmlrpc')
 	token   = auth(user,pwd,srv)
+	### END settings for connection to server 
 
+
+	### BEGIN git repo 
+	# if this is the first time the backup is executed in the current directory, a new git repository is initialized.
+	# otherwise a new commit to the existing git repo will be created
 	dirname = 'ConfluenceBackup_'+sk
 	
-	#if this is the first time the backup is executed in the current directory, a new git repository is initialized.
 	if not os.path.exists(dirname):
 		repo_dir = os.path.join(script_dir, dirname)
 		r = git.Repo.init(repo_dir)
@@ -81,9 +90,10 @@ def main():
 	else:
 		r = git.Repo(os.path.join(script_dir, dirname))	
 		assert not r.bare
+	### END git repo
 
 
-	#Get space info
+	### BEGIN Get space info, homepage id, newest blog id
 	spaceinfo = srv.confluence2.getSpace(token,sk)
 	if "description" in spaceinfo:
 		description = spaceinfo["description"]
@@ -91,26 +101,22 @@ def main():
 		description = ""
 
 	print('Saving Space ' + spaceinfo["name"])
-
-	#home page id and newest blog id
 	homepage = spaceinfo["homePage"]
 	lastblog = srv.confluence2.search(token,"type = blogpost AND spacekey="+sk,1)
 	lastblog = lastblog[0]["id"]
+	###	END Get space info, homepage id, newest blog id
 
-	#save css
+	### BEGIN assets for html
 	with open(os.path.join(script_dir, dirname+'/assets/main.css'), "wt",encoding="utf-8") as css:
 		css.write('.blogtree a, .blogtree a:link { color: seashell;}#sidebar object{position:absolute;height:100%;width:100%}#gotospan{padding:2px 10px; border:1px #83B7D9 solid; color:seashell!important} #sidebar{position:fixed;top:0;bottom:0;left:0;overflow:scroll; width:20em;background-color:#404040}#sidebarheader{background-color:#2980B9; padding:10px 20px; text-align:center;}.blogtree{color:#2980B9} li.active > a { color: Crimson}#sidebar::-webkit-scrollbar { display: none;} html,body{font-family:sans-serif; margin:0; padding:0;height:100%}.pagetree{color:seashell} a,a:link{text-decoration:none; color:Crimson}a:hover{text-decoration:underline}#pagetree ul{list-style-type: none}a.pagelink:hover,.arrow:hover{text-decoration: underline}a.arrow, a.dot{font-family: monospace; font-size: 20px;text-decoration: none; color:seashell} a.pagelink{color: seashell; padding-left: 5px;text-decoration:none}.confluenceTable{border-collapse:collapse;}.confluenceTh, .confluenceTd {    border: 1px solid #ddd; padding: 7px 10px; vertical-align: top; text-align: left;}.confluenceTh{background-color:#f0f0f0;}')
-	#save scripts
 	with open(os.path.join(script_dir, dirname+'/assets/main.js'), "wt",encoding="utf-8") as js:
 		js.write('function findUpTag(n,e){for(;n.parentNode;)if(n=n.parentNode,n.tagName===e)return n;return null} function showChildren(ele){var children=ele.parentElement.childNodes; for (var i=0; i < children.length; i++){if (children[i].nodeName.toLowerCase()=="ul"){children[i].style.display="block";}}ele.setAttribute("onclick","hideChildren(this)"); ele.innerHTML="&darr;";}function hideChildren(ele){var children=ele.parentElement.childNodes; for (var i=0; i < children.length; i++){if (children[i].nodeName.toLowerCase()=="ul"){children[i].style.display="none";}}ele.setAttribute("onclick","showChildren(this)"); ele.innerHTML="&rarr;";}function openTree(){var e=document.body.getAttribute("pageid"),t=document.getElementById(e);for(t.firstElementChild.children.length>2&&showChildren(t.firstElementChild.firstElementChild),t.firstElementChild.className+=" active";findUpTag(t,"UL");)showChildren(findUpTag(t,"UL").firstElementChild.firstElementChild),t=findUpTag(t,"UL")}')
-
+	### END assets for html
 	
-		
-
+	
+	### BEGIN download of pages (if downloadpages argument is true)		
 	if downloadPages:
 		print('Saving pages')
-		
-
 		#get all pageIDs
 		pages = srv.confluence2.getPages(token,sk)
 		pagescount = str(len(pages))
@@ -120,22 +126,20 @@ def main():
 
 		for page in pages:
 			pagemeta = srv.confluence2.getPage(token,page["id"])
+			#add own id to parents array. This ensures a correct page tree (with the current page also showing)
 			parents[pagemeta["parentId"]].append(page["id"])
 
 		pagetreeHTML = recursivePagetreeHTML(srv,token,parents,"0")
 
-		pool = mp.Pool(processes=len(pages))     
-		for page in pages:    
-			#pool.apply_async(loadpage, args = (srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog, ))
-			loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog)
-			#pool.apply_async(foo_pool, args = (1, ))
+		#with concurrent.futures.ThreadPoolExecutor(max_workers=pproc) as executor:
+		#	futures = [executor.submit(loadpage, {srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo["name"],pagetreeHTML,lastblog}) for page in pages]
+		#	for future in concurrent.futures.as_completed(futures):
+		#		print("finished page")
+		for page in pages:
+			print (loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo["name"],pagetreeHTML,lastblog))
+	### END download of pages
 
-		pool.close()
-		pool.join()
-
-
-
-
+	### BEGIN download of blogposts
 	if downloadBlog:
 		print('Saving blog')
 		blogs = srv.confluence2.getBlogEntries(token,sk)
@@ -144,8 +148,10 @@ def main():
 		print(blogscount+ " blog posts found.")
 		print("creating sorted blog tree.")
 
+		## BEGIN blog sidebar tree
 		monthnames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 		blogtreeHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><base target="_parent" /><link rel="stylesheet" href="../assets/main.css"><script language="javascript" type="text/javascript" src="../assets/main.js"></script><title>blogtree</title></head><body><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+spaceinfo["name"]+'</i></h3><p><i>saved '+str(datetime.datetime.today())+'</i></p></div><div><a target href="../pages/'+spaceinfo["homePage"]+'.html"><span id="gotospan">go&nbsp;to&nbsp;pages</span></a></div></div><div style="padding:0 10px;"><h3 style="color:Crimson">BLOG</h3><table class="blogtree" style="width:100%">'
+		#the idea here is to get a list of blog posts ordered by month, showing the newest first.
 		#create a defaultdict with keys 201510,201509,2014111 etc for every month. Insert every blog resp. as value
 		yearmonthDict = defaultdict(list)	
 		for blog in blogs:
@@ -173,7 +179,7 @@ def main():
 		blogtreeHTML += "</table></body>"
 		with open(os.path.join(script_dir, dirname+'/assets/blogtree.html'), "wt",encoding="utf-8") as out_file:
 			out_file.write(blogtreeHTML)
-
+		##END blog sidebar tree
 
 		print("downloading blogs...")
 		for count, blog in enumerate(blogs, start=1):
@@ -199,7 +205,7 @@ def main():
 				contenthtml = saveConfluenceContent(srv,token,blog["id"]).replace(replacethis,withthis)
 				out_file.write(blogheader+attachHTML+contenthtml+commentHTML+blogfooter)
 		
-
+	### END download of blogposts
 
 
 	print('creating start-here page')
@@ -229,55 +235,70 @@ def auth(user,pwd,srv):
 	finally:
 		return srv.confluence2.login(user, pwd)
 
-# escape() and unescape() takes care of &, < and >.
-html_escape_table = {
-    '"': "&quot;",
-    "'": "&apos;"
-}
+
 
 def html_escape(text):
-    return escape(text, html_escape_table)
+	# escape() and unescape() takes care of &, < and >.
+	html_escape_table = {
+		'"': "&quot;",
+		"'": "&apos;"
+	}
+	return escape(text, html_escape_table)
 
-def loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spaceinfo,pagetreeHTML,lastblog):
-	print(page["id"])
+### loadpage(server,authentification token, local backup directory, array with page info, boolean if attachments should be downloaded, root folder of script, int number of pages, string spacename, string pagetree, int id of last blog)
+### Function to load a page with given id, todo: async call for multithreaded loading
+def loadpage(srv,token,dirname,page,downloadAttach,script_dir,pagescount,spacename,pagetreeHTML,lastblog):
+
+	### path to local backup html. For every page a new file is created in the folder /pages/. The name is given by the content id and the file extension .html. This is to make sure this backup works on every filesystem and has no weird symbols or spaces in its filename.
 	pagepath = dirname+'/pages/'+page["id"]+'.html'
+
+	### BEGIN comments 	
 	comments = srv.confluence2.getComments(token,page["id"])
 	commentHTML =""
-	#print(comments)
 	for comment in comments:
-		commentHTML += "<div><hr><h4>"+html_escape(comment["creator"])+'</h4><p><i>'+html_escape(str(comment["created"]))+'</i></p>'+comment["content"]+'</div>'
+		commentHTML += '<div class="confluence_comment"><hr><h4>'+html_escape(comment["creator"])+'</h4><p><i>'+html_escape(str(comment["created"]))+'</i></p><div>'+comment["content"]+'</div></div>'
+	### END comments
+
+	### BEGIN additional info, for page tree links
 	pagemeta = srv.confluence2.getPage(token,page["id"])
 	anchestors = srv.confluence2.getAncestors(token,page["id"])
 	anchestorsJS = ""
 	for anchestor in anchestors:
 		anchestorsJS += anchestor["id"] + ','
 	anchestorsJS = anchestorsJS[:-1]
+	### END additional info
 
-	#downloading Attachments of page
+	###BEGIN attachments
 	attachHTML = ""
 	if downloadAttach:
 		attachHTML = getConfAttachments(srv,token,page["id"],dirname)
-		
+	###END attachments
+	
+	###BEGIN content of page
+	timefileloc = os.path.join(script_dir, dirname+'/backuptime.txt')
+	if (os.path.isfile(timefileloc)):
+		with open(timefileloc, "r",encoding="utf-8") as timefile:
+			lastbackuptime = timefile.read()
+			#if server file newer than last backup
+			if ((pagemeta["modified"] > datetime.datetime.fromtimestamp(float(lastbackuptime))) or not (os.path.isfile(os.path.join(script_dir, pagepath)))):
+				writePage(srv,token,script_dir,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML)
+			else:
+				print (page["id"]+ ": Content not changed since last backup. Skipping")
+	else:
+		writePage(srv,token,script_dir,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML)
 
-	with open(os.path.join(script_dir, pagepath), "wt",encoding="utf-8") as out_file:
-		print("writing page "+ page["id"])
-		pageheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+html_escape(page["title"])+'</title><script language="javascript" type="text/javascript" src="../assets/main.js"></script><link rel="stylesheet" href="../assets/main.css"></head>'
-		pageheader += '<body onload="openTree()" pageid="'+page["id"]+'"><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+html_escape(spaceinfo["name"])+'</i></h3><p><i>saved '+html_escape(str(datetime.datetime.today()))+'</i></p></div><div><a href="../blogs/'+lastblog+'.html"><span id="gotospan">go&nbsp;to&nbsp;blog</span></a></div></div><div id="pagetree" style="padding:0 10px;"><h3 style="color:Crimson">PAGES</h3>'+pagetreeHTML+'</div></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+html_escape(page["title"])+' (<a href="'+page["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(pagemeta["created"])[0:4]+'-'+str(pagemeta["created"])[4:6]+'-'+str(pagemeta["created"])[6:8]+' '+str(pagemeta["created"])[9:]+' by '+html_escape(pagemeta["creator"])+'</h5>'
-		pagefooter = '</div></body></html>'
-		#modify links within pagehtml
-		contenthtml = saveConfluenceContent(srv,token,page["id"]).replace('="/download/attachments','="../attachments')
-		contenthtml = contenthtml.replace('/pages/viewpage.action\?pageId=([1-9]*)','../pages/\1.html')
-		out_file.write(pageheader+attachHTML+contenthtml+commentHTML+pagefooter)
-	return "finished page " + page["id"]
+	###END content of page
+	
+	return "------- " + page["id"] + ' completed --------'
 
-def loadpageComplete(result):
-	print (str(result))
-
-#returns the content of the given id in plain html wrapped by a <div>
+### saveConfluenceContent 
+### returns the content of the given id in plain html wrapped by a <div>
 def saveConfluenceContent(srv,token,id):
 	parameter = {}
 	parameter['style'] = 'clean'
 	return srv.confluence2.renderContent(token,'',id,'',parameter)
+
+
 
 def recursivePagetreeHTML(srv,token,parents,i):
 	html = ""
@@ -309,23 +330,30 @@ def recursivePagetreeHTML(srv,token,parents,i):
 	return html
 
 def getConfAttachments(srv,token,contentid,dirname):
+
+	### ask server for attachments
 	attachments = srv.confluence2.getAttachments(token,contentid)
+
+	### set html output
 	attachHTML = ""
 
-	
-	
+		
 	if attachments:
+		### add html container and heading
 		attachHTML+= '<div style="background-color: #DDD; border: 1px silver ridge; padding: 5px;"><b>Attachments</b><ul>'
 		for attachment in attachments:
+
+			### every page/blog gets its own folder with all its attachments. This folder is named with the contentid of that page/blogpost
 			directoryname= dirname + '/attachments/' + contentid
 			if not os.path.exists(directoryname):
 				os.mkdir(directoryname)
 			attachPath = '/attachments/'+ contentid+'/'+attachment["fileName"]
 
-			#check if file has changes since last backup
+			### check if file has changes since last backup. The modification date is within its url
 			url = attachment["url"]
 			urlpos = url.find('modificationDate')+17
 			modDate = url[urlpos:urlpos+10]
+			# last backuptime is saved with backuptime.txt
 			timefileloc = os.path.join(script_dir, dirname+'/backuptime.txt')
 
 			#if this is a refresh of an old backup
@@ -334,25 +362,41 @@ def getConfAttachments(srv,token,contentid,dirname):
 					lastbackuptime = timefile.read()
 					#if server file newer than last backup
 					if (int(modDate) > int(float(lastbackuptime)) or not (os.path.isfile(os.path.join(script_dir, dirname+ attachPath)))):
-						#then download new version
-						with open(os.path.join(script_dir, dirname+ attachPath),"wb") as out_file:
-							print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
-							attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
-							out_file.write(attbytes)
+						writeAttachment(srv,script_dir,dirname,attachPath,attachment,contentid,token)						
 					else:
 						print('Skipping '+attachment["fileName"]+' for contentid '+contentid + ' (not updated since last backup)')
 
 			#first time backing up space, so no backuptime file present
 			else:
-				#load attachment
-				with open(os.path.join(script_dir, dirname+ attachPath),"wb") as out_file:
-							print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
-							attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
-							out_file.write(attbytes)
+				writeAttachment(srv,script_dir,dirname,attachPath,attachment,contentid,token)
 
+			#create link to attachment
 			attachHTML+='<li><a href="..'+attachPath+'">'+attachment["fileName"]+'</a></li>'
+
+		###close attachment content if every attachment has been processed
 		attachHTML +='</ul></div>'
 	return attachHTML
+
+def writePage(srv,token,script_dir,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML):
+	with open(os.path.join(script_dir, pagepath), "wt",encoding="utf-8") as out_file:
+			pageheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+html_escape(page["title"])+'</title><script language="javascript" type="text/javascript" src="../assets/main.js"></script><link rel="stylesheet" href="../assets/main.css"></head>'
+			pageheader += '<body onload="openTree()" pageid="'+page["id"]+'"><div id="sidebar"><div id="sidebarheader"><div><h3>Local copy of Confluence Space<br><i>'+html_escape(spacename)+'</i></h3><p><i>saved '+html_escape(str(datetime.datetime.today()))+'</i></p></div><div><a href="../blogs/'+lastblog+'.html"><span id="gotospan">go&nbsp;to&nbsp;blog</span></a></div></div><div id="pagetree" style="padding:0 10px;"><h3 style="color:Crimson">PAGES</h3>'+pagetreeHTML+'</div></div><div style="float:left; padding: 0px 30px; height:100%; padding-left:22em;"> <h1>'+html_escape(page["title"])+' (<a href="'+page["url"]+'">Origin</a>)</h1>'+'<h5>Published '+str(pagemeta["created"])[0:4]+'-'+str(pagemeta["created"])[4:6]+'-'+str(pagemeta["created"])[6:8]+' '+str(pagemeta["created"])[9:]+' by '+html_escape(pagemeta["creator"])+'</h5>'
+			pagefooter = '</div></body></html>'
+			#modify links within pagehtml
+			contenthtml = saveConfluenceContent(srv,token,page["id"]).replace('="/download/attachments','="../attachments')
+			contenthtml = contenthtml.replace('/pages/viewpage.action\?pageId=([1-9]*)','../pages/\1.html')
+			out_file.write(pageheader+attachHTML+contenthtml+commentHTML+pagefooter)
+
+def writeAttachment(srv,script_dir,dirname,attachPath,attachment,contentid,token):
+	with open(os.path.join(script_dir, dirname+ attachPath),"wb") as out_file:
+		print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
+		attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
+		out_file.write(attbytes)
+
+def foo_pool(x):
+	print ("Working in Process #%d" % (os.getpid()))
+	time.sleep(0.6)
+	return x*x
 
 if __name__ == "__main__":
 	script_dir = os.path.dirname(__file__)
