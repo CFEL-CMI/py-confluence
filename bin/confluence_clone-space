@@ -3,14 +3,13 @@
 #
 # Copyright (C) 2016 Alex Franke
 
-# This script will generate a local and readable
-# HTML backup of a Confluence space within a new folder
+__doc__ = """This script will generate a local and readable HTML backup of a Confluence space within a new folder"""
 
 # TODOS
 #
 # async page / blog loading
-# do not abort if user has insuffcient permissions or atleast generate start page anyway
-# only update if blog post has changed since last sync. Attachments/pages already work this way.
+# do not abort if user has insuffcient permissions or, at least, generate start page anyway
+# only update blogposts if blogpost has changed since last sync. Attachments/pages already work this way.
 
 import os
 import datetime
@@ -30,7 +29,6 @@ from pprint import pprint
 import git
 from xml.sax.saxutils import escape, unescape
 import concurrent.futures
-
 
 
 
@@ -245,8 +243,9 @@ def html_escape(text):
 def loadpage(srv, token, dirname, page, downloadAttach, pagescount, spacename, pagetreeHTML, lastblog):
     """Load page
 
-    server
-    authentification token
+    Parameters:
+    |server|
+    |authentification token|
     local backup directory,
     array with page info,
     boolean if attachments should be downloaded,
@@ -254,17 +253,23 @@ def loadpage(srv, token, dirname, page, downloadAttach, pagescount, spacename, p
     string spacename,
     string pagetree,
     int id of last blog
- Function to load a page with given id, todo: async call for multithreaded loading
-"""
+    Function to load a page with given id, todo: async call for multithreaded loading
 
-    ### path to local backup html. For every page a new file is created in the folder /pages/. The name is given by the content id and the file extension .html. This is to make sure this backup works on every filesystem and has no weird symbols or spaces in its filename.
+    For every page a new file is created in the folder /pages/. The name is given by the content id and the file
+    extension .html. This is to make sure this backup works on every filesystem and has no weird symbols or spaces in
+    its filename.
+    """
+    ### path to local backup html.
     pagepath = dirname+'/pages/'+page["id"]+'.html'
 
     ### BEGIN comments
     comments = srv.confluence2.getComments(token,page["id"])
     commentHTML =""
     for comment in comments:
-        commentHTML += '<div class="confluence_comment"><hr><h4>'+html_escape(comment["creator"])+'</h4><p><i>'+html_escape(str(comment["created"]))+'</i></p><div>'+comment["content"]+'</div></div>'
+        commentHTML += '<div class="confluence_comment"><hr><h4>' \
+                       + html_escape(comment["creator"]) + '</h4><p><i>' \
+                       + html_escape(str(comment["created"])) + '</i></p><div>' \
+                       + comment["content"] + '</div></div>'
     ### END comments
 
     ### BEGIN additional info, for page tree links
@@ -288,20 +293,24 @@ def loadpage(srv, token, dirname, page, downloadAttach, pagescount, spacename, p
         with open(timefileloc, "r",encoding="utf-8") as timefile:
             lastbackuptime = timefile.read()
             #if server file newer than last backup
-            if ((pagemeta["modified"] > datetime.datetime.fromtimestamp(float(lastbackuptime))) or not (os.path.isfile(os.path.join(os.getcwd(), pagepath)))):
+            if ((pagemeta["modified"] > datetime.datetime.fromtimestamp(float(lastbackuptime)))
+                or not (os.path.isfile(os.path.join(os.getcwd(), pagepath)))):
                 writePage(srv, token, pagepath, page, spacename, lastblog, pagemeta, attachHTML, commentHTML, pagetreeHTML)
             else:
                 print (page["id"]+ ": Content not changed since last backup. Skipping")
     else:
         writePage(srv, token, pagepath, page, spacename, lastblog, pagemeta, attachHTML, commentHTML, pagetreeHTML)
-
     ###END content of page
 
     return "------- " + page["id"] + ' completed --------'
 
-### saveConfluenceContent
-### returns the content of the given id in plain html wrapped by a <div>
+
+
 def saveConfluenceContent(srv,token,id):
+    """saveConfluenceContent
+
+    returns the content of the given id in plain html wrapped by a <div>
+    """
     parameter = {}
     parameter['style'] = 'clean'
     return srv.confluence2.renderContent(token,'',id,'',parameter)
@@ -337,14 +346,13 @@ def recursivePagetreeHTML(srv,token,parents,i):
 
     return html
 
-def getConfAttachments(srv,token,contentid,dirname):
 
+
+def getConfAttachments(srv,token,contentid,dirname):
     ### ask server for attachments
     attachments = srv.confluence2.getAttachments(token,contentid)
-
     ### set html output
     attachHTML = ""
-
 
     if attachments:
         ### add html container and heading
@@ -385,6 +393,8 @@ def getConfAttachments(srv,token,contentid,dirname):
         attachHTML +='</ul></div>'
     return attachHTML
 
+
+
 def writePage(srv,token,pagepath,page,spacename,lastblog,pagemeta,attachHTML,commentHTML,pagetreeHTML):
     with open(os.path.join(os.getcwd(), pagepath), "wt",encoding="utf-8") as out_file:
             pageheader = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+html_escape(page["title"])+'</title><script language="javascript" type="text/javascript" src="../assets/main.js"></script><link rel="stylesheet" href="../assets/main.css"></head>'
@@ -395,16 +405,22 @@ def writePage(srv,token,pagepath,page,spacename,lastblog,pagemeta,attachHTML,com
             contenthtml = contenthtml.replace('/pages/viewpage.action\?pageId=([1-9]*)','../pages/\1.html')
             out_file.write(pageheader+attachHTML+contenthtml+commentHTML+pagefooter)
 
+
+
 def writeAttachment(srv,dirname,attachPath,attachment,contentid,token):
     with open(os.path.join(os.getcwd(), dirname+ attachPath),"wb") as out_file:
         print('Downloading '+attachment["fileName"]+' for contentid '+contentid)
         attbytes = srv.confluence2.getAttachmentData(token,contentid,attachment["fileName"],"0").data
         out_file.write(attbytes)
 
+
+
 def foo_pool(x):
     print ("Working in Process #%d" % (os.getpid()))
     time.sleep(0.6)
     return x*x
+
+
 
 if __name__ == "__main__":
     main()
