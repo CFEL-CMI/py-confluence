@@ -36,7 +36,9 @@ import concurrent.futures
 
 def main():
     ### BEGIN command line arguments
-    parser = argparse.ArgumentParser(description='This python3 module creates a local confluence backup of a specified space. The backup is accessible without any confluence installation as the output is purely html/css.')
+    parser = argparse.ArgumentParser(description='This python3 module creates a local confluence backup of a specified space. '
+                                     + 'The backup is accessible without any confluence installation '
+                                     + 'as the output is purely html/css.')
     parser.add_argument('--server', dest='server', default="https://confluence.desy.de/",
                 help='Server address [default: https://confluence.desy.de/]')
     parser.add_argument('--user', dest='user', default="afrankAdmin", help='Please enter your Username.    [default: jkuepper]')
