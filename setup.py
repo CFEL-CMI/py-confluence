@@ -14,6 +14,7 @@ long_description = """CMI Confluence Python extensions
 
 Original author:    Alexander Franke
 Current maintainer: Alexander Franke
+
 See the distribution files AUTHORS and THANKS for further contributions.
 """
 

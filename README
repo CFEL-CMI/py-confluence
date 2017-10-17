@@ -1,0 +1,29 @@
+py-confluence
+=============
+
+CFEL Controlled Molecule Imaging tools for Atlassian Confluence.
+
+This packages provides a few scripts to help using Confluence in a systematic
+fashion; see description of the individual files below.
+
+This package is provided as is and without any warranty included! If you have
+improvements or further tools, please send a patch to the maintainer -- see
+setup.py for details.
+
+
+confluence_create-CMI-space
+---------------------------
+Creates a space according to the standard CMI layout.
+
+
+confluence_clone-space
+----------------------
+Create a local html/xml copy of a the latest/current version of a complete
+space; all content is put into a git repository to allow for versioning of the
+downloaded content.
+
+
+# Local Variables:
+# mode: text
+# fill-column: 80
+# End:
