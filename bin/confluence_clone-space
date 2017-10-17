@@ -214,7 +214,7 @@ def main():
 
     #add all files to the git repo
     print('add all files to git repo')
-    r.git.add(update=True)
+    r.git.add(A=True)
     print('Commiting changes to git repo')
     r.index.commit("Confluence space backup of " + str(datetime.datetime.now()))
     print('Backup finished successfully.')
