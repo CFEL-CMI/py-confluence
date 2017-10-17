@@ -204,7 +204,7 @@ def main():
     print('creating start-here page')
 
     startpage = '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=pages/'+homepage+'.html"></head><body><p>Please visit <a href="pages/'+homepage+'.html">this page</a></p></body></html>'
-    with open(os.path.join(os.getcwd(), dirname+'/start-here.html'), "a",encoding="utf-8") as out:
+    with open(os.path.join(os.getcwd(), dirname+'/index.html'), "a",encoding="utf-8") as out:
         out.write(startpage)
 
     #save backup time
