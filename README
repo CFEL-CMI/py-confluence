@@ -7,8 +7,8 @@ This packages provides a few scripts to help using Confluence in a systematic
 fashion; see description of the individual files below.
 
 This package is provided as is and without any warranty included! If you have
-improvements or further tools, please send a patch to the maintainer -- see
-setup.py for details.
+improvements or further tools, please send a patch to the maintainer (see
+setup.py) so we can include it in the distribution.
 
 For installation, follow the standard Python approach, i.e., run
     python setup.py install --user
