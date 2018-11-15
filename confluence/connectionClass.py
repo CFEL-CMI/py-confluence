@@ -9,18 +9,18 @@ import xmlrpc.client
 import html
 
 class Confluence:
-    def __init__(self,username):
+    def __init__(self,username,pwd):
         self.serverUrl = self.get_serverurl()
         self.username = username
-        self.token = self.login()
-        self.srv = self.get_serverproxy()
+        self.pwd = pwd
 
 
     '''void setUser(string username), set a new user by the username NOT fullname'''
-    def set_user(self,username):
+    def set_user(self, username):
         self.username = username
-        #refresh token
-        self.token = self.login()
+
+    def set_pwd(self, pwd):
+        self.pwd = pwd
 
     '''string getUser(), return the current user as a string'''
     def get_user(self):
@@ -29,26 +29,6 @@ class Confluence:
     '''string getServerUrl(), return serverurl, currently fixed to our confluence.desy.de instance. There is not setServerUrl currently'''
     def get_serverurl():
         return "https://confluence.desy.de"
-
-    '''token login(string username), asks to input a password. This method should only be called if not valid token is present'''
-    def login(self):
-        print ("Please enter your password  (user:" + self.username+")")
-        pwd = getpass.getpass()
-        return self.get_token(self.username,pwd)
-
-    #def checkIfValidtoken(token):
-
-    '''token getToken(string user,string srv,password pwd),executed from login(username)'''
-    def get_token(self,user,pwd):
-        """Try to logout from server in case any previous connection is still open. Finally login and return authentification token."""
-        """check if token is valid"""
-        try:
-            self.srv.confluence2.logout(self.token)
-        finally:
-            return self.srv.confluence2.login(user, pwd)
-
-    def get_serverproxy(self):
-        return xmlrpc.client.ServerProxy(self.serverUrl+'rpc/xmlrpc')
 
     def get_writablespaces(self):
         readablespaces =  self.read_confluence_response(self.srv.confluence2.getSpaces())
@@ -75,16 +55,22 @@ class ConfluenceContent(Confluence):
     def get_title(self):
         return self.title
 
+    # set_title(string)
     def set_title(self,title):
         self.title = title
 
-    def set_labels():
-        return
+    # set_labels(string)
+    # requires comma separated list of labels and sets them as a python list
+    def set_labels(self, labels):
+        self.labels = labels.split(",")
 
-    def set_content():
-        return
+    def get_labels(self):
+        return self.labels
 
-    def throw_error(message):
+    def set_content(self, content):
+        self.content = content
+
+    def throw_error(self,message):
         return
 
     def set_permissions():
@@ -110,21 +96,43 @@ class ConfluenceContent(Confluence):
         }
         return html.escape(text, html_escape_table)
 
+    def publish_labels(self, page_id):
+        return
+
+    def publish_permissions(self, page_id):
+        return
+
 class ConfluenceBlogpost(ConfluenceContent):
-    #Date cannot be in the future, we need to check for that
+    # Date cannot be in the future, we need to check for that
     def set_date(self):
         return
-    #pubish, get blog id, set labels, set permissions and return link / blog post id
+    #TODO add the ability to set a date.
+    # publish, get blog id, set labels, set permissions and return link / blog post id
+
     def publish(self):
-        return
-    def get_date(self):
-        return
+        page_data = {'type': 'blogpost', 'body': {'storage': {'value': self.content, 'representation': 'storage'}}}
+        r = requests.post(self.serverUrl + '/rest/api/content',
+                          data=json.dumps(page_data),
+                          auth=(self.username, self.pwd),
+                          headers=({'Content-Type': 'application/json'})).json()
+
+        page_id = r.id
+        self.publish_labels(page_id)
+        self.publish_permissions(page_id)
+        return self.read_confluence_response(r)
 
 
 
-class ConfluencePage(ConfluenceContent,):
+class ConfluencePage(ConfluenceContent):
     # publish, get blog id, set labels, set permissions and return link / blog post id
     def publish(self):
-        return
-    def get_date(self):
-        return
+        page_data = {'type': 'page', 'body': {'storage': {'value': self.content, 'representation': 'storage'}}}
+        r = requests.post(self.serverUrl + '/rest/api/content',
+                          data=json.dumps(page_data),
+                          auth=(self.username, self.pwd),
+                          headers=({'Content-Type': 'application/json'})).json()
+
+        page_id = r.id
+        self.publish_labels(page_id)
+        self.publish_permissions(page_id)
+        return self.read_confluence_response(r)
