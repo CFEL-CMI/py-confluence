@@ -3,10 +3,8 @@
 
 
 import requests, json
-import getpass
-import xmlrpc
-import xmlrpc.client
 import html
+
 
 class Confluence:
     def __init__(self,username,pwd):
@@ -36,6 +34,7 @@ class Confluence:
     #helper function
     def read_confluence_response(self,r):
         return ('{} {}\n'.format(json.dumps(r.json(), sort_keys=True, indent=4, separators=(',', ': ')), r))
+
 
 class ConfluenceContent(Confluence):
     def __init__(self,title,labels,content,permissions,spacekey):
@@ -86,6 +85,7 @@ class ConfluenceContent(Confluence):
         """
         parameter = {}
         parameter['style'] = 'clean'
+        #TODO this has to be rewritter in rest api
         return self.srv.confluence2.renderContent(self.token,'',id,'',parameter)
 
     def html_escape(text):
@@ -102,7 +102,8 @@ class ConfluenceContent(Confluence):
     def publish_permissions(self, page_id):
         return
 
-class ConfluenceBlogpost(ConfluenceContent):
+
+class ConfluenceBlogPost(ConfluenceContent):
     # Date cannot be in the future, we need to check for that
     def set_date(self):
         return
@@ -120,7 +121,6 @@ class ConfluenceBlogpost(ConfluenceContent):
         self.publish_labels(page_id)
         self.publish_permissions(page_id)
         return self.read_confluence_response(r)
-
 
 
 class ConfluencePage(ConfluenceContent):
