@@ -3,10 +3,6 @@
 
 
 import requests, json
-import os
-import sys
-import datetime
-import string
 import getpass
 import xmlrpc
 import xmlrpc.client
@@ -83,12 +79,17 @@ class ConfluenceContent(Confluence):
         self.title = title
 
     def set_labels():
+        return
 
-    def setContent():
+    def set_content():
+        return
 
     def throw_error(message):
+        return
+
     def set_permissions():
-        return 0
+        return
+
     def set_space(self,spacekey):
         self.spacekey = spacekey
 
@@ -112,19 +113,18 @@ class ConfluenceContent(Confluence):
 class ConfluenceBlogpost(ConfluenceContent):
     #Date cannot be in the future, we need to check for that
     def set_date(self):
+        return
+    #pubish, get blog id, set labels, set permissions and return link / blog post id
     def publish(self):
-
-        #pubish, get blog id, set labels, set permissions and return link / blog post id
-
-
+        return
     def get_date(self):
+        return
 
 
 
 class ConfluencePage(ConfluenceContent,):
+    # publish, get blog id, set labels, set permissions and return link / blog post id
     def publish(self):
-        #pubish, get blog id, set labels, set permissions and return link / blog post id
-
-
+        return
     def get_date(self):
-
+        return
