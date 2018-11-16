@@ -13,7 +13,7 @@ class Confluence:
         self.pwd = pwd
 
 
-    '''void setUser(string username), set a new user by the username NOT fullname'''
+    '''setUser(string username), set a new user by the username NOT fullname'''
     def set_user(self, username):
         self.username = username
 
@@ -34,6 +34,12 @@ class Confluence:
     #helper function
     def read_confluence_response(self,r):
         return ('{} {}\n'.format(json.dumps(r.json(), sort_keys=True, indent=4, separators=(',', ': ')), r))
+
+    def postrequest(self,interface,data):
+        return requests.post(self.get_serverurl() + '/rest/api/'+interface,
+                      data=json.dumps(data),
+                      auth=(self.username, self.pwd),
+                      headers=({'Content-Type': 'application/json'})).json()
 
 
 class ConfluenceContent(Confluence):
@@ -85,7 +91,7 @@ class ConfluenceContent(Confluence):
         """
         parameter = {}
         parameter['style'] = 'clean'
-        #TODO this has to be rewritter in rest api
+        #TODO this has to be rewritten in rest api
         return self.srv.confluence2.renderContent(self.token,'',id,'',parameter)
 
     def html_escape(text):
@@ -112,14 +118,13 @@ class ConfluenceBlogPost(ConfluenceContent):
 
     def publish(self):
         page_data = {'type': 'blogpost', 'body': {'storage': {'value': self.content, 'representation': 'storage'}}}
-        r = requests.post(self.serverUrl + '/rest/api/content',
-                          data=json.dumps(page_data),
-                          auth=(self.username, self.pwd),
-                          headers=({'Content-Type': 'application/json'})).json()
+        r = self.postrequest('content', page_data)
 
         page_id = r.id
-        self.publish_labels(page_id)
-        self.publish_permissions(page_id)
+        if len(self.labels) > 0:
+            self.publish_labels(page_id)
+
+        #self.publish_permissions(page_id)
         return self.read_confluence_response(r)
 
 
@@ -127,12 +132,10 @@ class ConfluencePage(ConfluenceContent):
     # publish, get blog id, set labels, set permissions and return link / blog post id
     def publish(self):
         page_data = {'type': 'page', 'body': {'storage': {'value': self.content, 'representation': 'storage'}}}
-        r = requests.post(self.serverUrl + '/rest/api/content',
-                          data=json.dumps(page_data),
-                          auth=(self.username, self.pwd),
-                          headers=({'Content-Type': 'application/json'})).json()
-
+        r = self.postrequest('content', page_data)
         page_id = r.id
-        self.publish_labels(page_id)
+        if len(self.labels) > 0:
+            self.publish_labels(page_id)
+
         self.publish_permissions(page_id)
         return self.read_confluence_response(r)
