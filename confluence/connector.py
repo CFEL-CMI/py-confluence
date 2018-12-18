@@ -12,7 +12,6 @@ class Confluence:
         self.username = username
         self.pwd = pwd
 
-
     '''setUser(string username), set a new user by the username NOT fullname'''
     def set_user(self, username):
         self.username = username
@@ -31,15 +30,31 @@ class Confluence:
     def get_writablespaces(self):
         readablespaces =  self.read_confluence_response(self.srv.confluence2.getSpaces())
 
-    #helper function
+    # helper function
     def read_confluence_response(self,r):
         return ('{} {}\n'.format(json.dumps(r.json(), sort_keys=True, indent=4, separators=(',', ': ')), r))
 
-    def postrequest(self,interface,data):
+    # json post_request(string interface, string data)
+    # returns json
+    # Interface means the part of the url after /rest/api/,
+    # for example 'interface = content' or 'interface = space'
+    # data required a valid string in json
+    def post_request(self, interface, data):
         return requests.post(self.get_serverurl() + '/rest/api/'+interface,
                       data=json.dumps(data),
                       auth=(self.username, self.pwd),
                       headers=({'Content-Type': 'application/json'})).json()
+
+    # json get_request(string interface, string expand)
+    # returns json, needs two parameters.
+    # Interface means the part of the url after /rest/api/,
+    # for example 'interface = content' or 'interface = space'
+    # The answer of the server is shorted. Different parts can be expanded,
+    # for example 'expand = body.storage,version' to expand the contents and version history
+    def get_request(self, interface, expand):
+        return requests.get(self.serverUrl + '/rest/api/'+interface,
+                         params={'expand': expand},
+                         auth=(self.username, self.pwd)).json()
 
 
 class ConfluenceContent(Confluence):
@@ -53,7 +68,7 @@ class ConfluenceContent(Confluence):
         else:
             self.throw_error('Content not in valid format')
 
-    def checkIfContentValid(self,content):
+    def checkIfContentValid(self, content):
         return True
 
     # string getTitle(), returns current title
@@ -76,7 +91,7 @@ class ConfluenceContent(Confluence):
         self.content = content
 
     def throw_error(self,message):
-        return
+        raise Exception(message)
 
     def set_permissions():
         return
@@ -86,7 +101,6 @@ class ConfluenceContent(Confluence):
 
     def get_confluence_content(self,id):
         """get_confluence_content
-
         returns the content of the given id in plain html wrapped by a <div>
         """
         parameter = {}
@@ -110,16 +124,25 @@ class ConfluenceContent(Confluence):
 
 
 class ConfluenceBlogPost(ConfluenceContent):
+    def __init__(self,date):
+        self.date = date
+
     # Date cannot be in the future, we need to check for that
-    def set_date(self):
-        return
+    # date format yyyy-mm-dd
+    def set_date(self,datestring):
+        year  = datestring[:4]
+        month = datestring[5:7]
+        day   = datestring[8:10]
+        if(isinstance(year,int) and isinstance(month,int) and isinstance(day,int)):
+            self.date = datestring
+        else:
+            self.throw_error("date not properly formatted")
+
     #TODO add the ability to set a date.
     # publish, get blog id, set labels, set permissions and return link / blog post id
-
     def publish(self):
         page_data = {'type': 'blogpost', 'body': {'storage': {'value': self.content, 'representation': 'storage'}}}
-        r = self.postrequest('content', page_data)
-
+        r = self.post_request('content', page_data)
         page_id = r.id
         if len(self.labels) > 0:
             self.publish_labels(page_id)
@@ -132,7 +155,7 @@ class ConfluencePage(ConfluenceContent):
     # publish, get blog id, set labels, set permissions and return link / blog post id
     def publish(self):
         page_data = {'type': 'page', 'body': {'storage': {'value': self.content, 'representation': 'storage'}}}
-        r = self.postrequest('content', page_data)
+        r = self.post_request('content', page_data)
         page_id = r.id
         if len(self.labels) > 0:
             self.publish_labels(page_id)

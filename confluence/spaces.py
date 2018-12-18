@@ -23,18 +23,12 @@ def auth(user,srv,pwd):
 def xmlrpcServer(serverurl):
     return xmlrpc.client.ServerProxy(serverurl+'rpc/xmlrpc')
 
-
-
 def printResponse(r):
     print ('{} {}\n'.format(json.dumps(r.json(), sort_keys=True, indent=4, separators=(',', ': ')), r))
-
-
 
 def addReadPermissions(token,srv,entity,spacekey):
     """Adds the permission VIEWSPACE to a given entity (String of a confluence group or user)"""
     srv.confluence2.addPermissionToSpace(token,"VIEWSPACE",entity,spacekey)
-
-
 
 def addWritePermissions(token,srv,entity,spacekey):
     """Adds the permissions VIEWSPACE,EDITSPACE,COMMENT,CREATEATTACHMENT,EDITBLOG to a given entity (String of a confluence group or user)"""
@@ -42,13 +36,11 @@ def addWritePermissions(token,srv,entity,spacekey):
     for perm in permissions:
         srv.confluence2.addPermissionToSpace(token,perm,entity,spacekey)
 
-
 def addAdminPermissions(token,srv,entity,spacekey):
     """Adds the administration permission to a given entity (String of a confluence group or user)"""
     permissions = ['VIEWSPACE','SETSPACEPERMISSIONS','EDITSPACE','COMMENT','REMOVECOMMENT','CREATEATTACHMENT','REMOVEATTACHMENT','EDITBLOG','REMOVEPAGE','REMOVEBLOG','EXPORTSPACE','SETPAGEPERMISSIONS']
     for perm in permissions:
         srv.confluence2.addPermissionToSpace(token,perm,entity,spacekey)
-
 
 def createCMISpace(serverurl, user, spacekey, spacename, reads,writes,admins):
     """Creates a new space (required spacekey, name), sets the homepage according to the CMI template and sets space categories **cfel-cmi** and **cmi-elog-calendar**"""
