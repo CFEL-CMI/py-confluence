@@ -4,11 +4,12 @@
 
 import requests, json
 import html
+import datetime
 
 
 class Confluence:
     def __init__(self,username,pwd):
-        self.serverUrl = self.get_serverurl()
+        self.serverurl = "https://confluence.desy.de" # defaulting to desy confluence, overwrite with set_serverurl
         self.username = username
         self.pwd = pwd
 
@@ -24,8 +25,11 @@ class Confluence:
         return self.username
 
     '''string getServerUrl(), return serverurl, currently fixed to our confluence.desy.de instance. There is not setServerUrl currently'''
-    def get_serverurl():
-        return "https://confluence.desy.de"
+    def get_serverurl(self):
+        return self.serverurl
+
+    def set_serverurl(self,url):
+        self.serverurl = url
 
     def get_writablespaces(self):
         readablespaces =  self.read_confluence_response(self.srv.confluence2.getSpaces())
@@ -40,7 +44,7 @@ class Confluence:
     # for example 'interface = content' or 'interface = space'
     # data required a valid string in json
     def post_request(self, interface, data):
-        return requests.post(self.get_serverurl() + '/rest/api/'+interface,
+        return requests.post(self.serverurl + '/rest/api/'+interface,
                       data=json.dumps(data),
                       auth=(self.username, self.pwd),
                       headers=({'Content-Type': 'application/json'})).json()
@@ -52,7 +56,7 @@ class Confluence:
     # The answer of the server is shorted. Different parts can be expanded,
     # for example 'expand = body.storage,version' to expand the contents and version history
     def get_request(self, interface, expand):
-        return requests.get(self.serverUrl + '/rest/api/'+interface,
+        return requests.get(self.serverurl + '/rest/api/'+interface,
                          params={'expand': expand},
                          auth=(self.username, self.pwd)).json()
 
@@ -117,15 +121,20 @@ class ConfluenceContent(Confluence):
         return html.escape(text, html_escape_table)
 
     def publish_labels(self, page_id):
-        return
+        labels = self.labels
+        jsondata = []
+
+        for label in labels:
+            jsondata.append({"prefix": "global","name": label})
+
+        self.post_request("content/"+page_id+"/label",jsondata)
+
 
     def publish_permissions(self, page_id):
         return
 
 
 class ConfluenceBlogPost(ConfluenceContent):
-    def __init__(self,date):
-        self.date = date
 
     # Date cannot be in the future, we need to check for that
     # date format yyyy-mm-dd
@@ -134,11 +143,15 @@ class ConfluenceBlogPost(ConfluenceContent):
         month = datestring[5:7]
         day   = datestring[8:10]
         if(isinstance(year,int) and isinstance(month,int) and isinstance(day,int)):
-            self.date = datestring
+            newdate = datetime.date(year, month, day)
+            if newdate > datetime.date.today():
+                self.throw_error("A blog post cannot be submitted for dates in the future. Please choose a different date.")
+            else:
+                self.date = datestring
         else:
             self.throw_error("date not properly formatted")
 
-    #TODO add the ability to set a date.
+    # TODO add the ability to set a date.
     # publish, get blog id, set labels, set permissions and return link / blog post id
     def publish(self):
         page_data = {'type': 'blogpost', 'body': {'storage': {'value': self.content, 'representation': 'storage'}}}
