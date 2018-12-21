@@ -32,6 +32,8 @@ class Confluence:
         self.serverurl = url
 
     def get_writablespaces(self):
+        #TODO
+        jsondata = self.get_request("space")
         readablespaces =  self.read_confluence_response(self.srv.confluence2.getSpaces())
 
     # helper function
@@ -62,18 +64,18 @@ class Confluence:
 
 
 class ConfluenceContent(Confluence):
-    def __init__(self,title,labels,content,permissions,spacekey):
-        self.title = title
-        self.labels = labels #this is a list
-        self.spacekey = spacekey
-        self.permissions = permissions
-        if self.checkIfContentValid(content):
-            self.content = content
-        else:
-            self.throw_error('Content not in valid format')
-
+    def __init__(self,username,pwd):
+        self.username = username
+        self.pwd = pwd
+        
     def checkIfContentValid(self, content):
         return True
+
+    def get_space(self):
+        return self.spacekey
+
+    def set_space(self,spacekey):
+        self.spacekey = spacekey
 
     # string getTitle(), returns current title
     def get_title(self):
@@ -91,6 +93,9 @@ class ConfluenceContent(Confluence):
     def get_labels(self):
         return self.labels
 
+    def get_content(self):
+        return self.content
+
     def set_content(self, content):
         self.content = content
 
@@ -107,10 +112,7 @@ class ConfluenceContent(Confluence):
         """get_confluence_content
         returns the content of the given id in plain html wrapped by a <div>
         """
-        parameter = {}
-        parameter['style'] = 'clean'
-        #TODO this has to be rewritten in rest api
-        return self.srv.confluence2.renderContent(self.token,'',id,'',parameter)
+        return '<div>' + self.get_request('content/'+id,"") + "</div>"
 
     def html_escape(text):
         # escape() and unescape() takes care of &, < and >.
@@ -120,6 +122,8 @@ class ConfluenceContent(Confluence):
         }
         return html.escape(text, html_escape_table)
 
+    # publish_labels(string page_id)
+    # adds labels stored in self.labels as list to a confluence page or blogpost. Required is the page_id.
     def publish_labels(self, page_id):
         labels = self.labels
         jsondata = []
