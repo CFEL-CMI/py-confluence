@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; fill-column: 120 -*-
+# -*- coding: utf-8; fill-column: 80 -*-
 #
-# Copyright (C) 2016 Jochen Küpper <jochen.kuepper@cfel.de>
+# Copyright (C) 2016,2017 Jochen Küpper <jochen.kuepper@cfel.de>
+# Copyright (C) 2016,2017 Alexander Franke <alexander.franke@cfel.de>
 
 
 import os
@@ -12,23 +13,33 @@ library_dirs = []
 
 long_description = """CMI Confluence Python extensions
 
+CFEL Controlled Molecule Imaging (CMI) tools for Atlassian Confluence.
+
+This packages provides a few scripts to help using Confluence in a systematic
+fashion; see description of the individual files below.
+
+This package is provided as is and without any warranty included! If you have
+improvements or further tools, please send a patch to the maintainer -- see
+setup.py for details.
+
 Original author:    Alexander Franke
 Current maintainer: Alexander Franke
-See the distribution files AUTHORS and THANKS for further contributions.
+
+See the distribution files AUTHORS and README for further contributions.
 """
 
 
 setup(name="py-confluence",
-      author              = "Jochen Küpper, Alexander Franke, CFEL-CMI group, et al (see AUTHORS)",
+      author              = "Alexander Franke, Jochen Küpper",
       author_email        = "jochen.kuepper@cfel.de",
-      maintainer          = "Jochen Küpper and the CFEL-CMI group",
-      maintainer_email    = "jochen.kuepper@cfel.de",
-      url                 = "http://confluence.desy.de",
+      maintainer          = "Alexander Franke",
+      maintainer_email    = "alexander.franke@cfel.de",
+      url                 = "https://stash.desy.de/projects/CMI/repos/py-confluence",
       description         = "CMI Confluence Python Tools",
       version             = "0.1.dev0",
       long_description    = long_description,
       license             = "GPL",
       packages            = ['confluence'],
-      scripts             = ['bin/confluence_create_CMI_space',
-                             'bin/confluence_static_archive'],
+      scripts             = ['bin/confluence_clone-space',
+                             'bin/confluence_create-CMI-space'],
       )

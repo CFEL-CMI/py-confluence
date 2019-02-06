@@ -2,11 +2,13 @@
 # -*- coding: utf-8; fill-column: 120 -*-
 #
 # Copyright (C) 2016 Alex Franke
-"""
-This python3 module creates a new space according to the CMI template.
+
+__doc__ = """Creates a new space according to the CFEL-CMI template.
+
 The CMI template includes a custom homepage, the space categories **cfel-cmi** and **cmi-elog-calendar**.
-You have to provide a servername and a user with rights to create a new space.
-Additional settings like the spacekey and name of the new space are required.
+
+You have to provide a servername and a user with rights to create a new space. Additional settings like the spacekey and
+name of the new space are required.
 """
 
 from confluence import spaces
@@ -44,7 +46,7 @@ def main():
     for entity in args.admin.split(','):
         if entity != '':
             admins.append(entity)
-    # Add Jochen Kuepper as Admin by default        
+    # Add Jochen Kuepper as Admin by default
     admins.append('jkuepper')
 
     print('----------------------------------------------------------------------')
