@@ -6,14 +6,16 @@
 from confluence import connector
 
 confluence = connector.Confluence(
-    url='http://134.100.104.244:8090',
-    username='admin',
-    password='admin')
+    username='USERNAME e.g. afrank or jkuepper',
+    password='password'
+)
 
-status = confluence.create_blog_post(
-    space='DS',
-    title='Testtitle',
-    body='This is the body. You can use <strong>HTML tags</strong>!')
+newblog = confluence.create_blog_post(
+    space='~afrank',
+    title='testblog with label33',
+    body='This is the body. You can use <strong>HTML tags</strong>!'
+)
 
-print(status)
+labels = confluence.set_blog_post_label(newblog["id"], "testlabel")
+
 

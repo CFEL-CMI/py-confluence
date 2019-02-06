@@ -1,4 +1,8 @@
-# coding: utf8
+#!/usr/bin/env python
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# Copyright (C) 2018 Alexander Franke
+
 from .rest_client import AtlassianRestAPI
 from requests import HTTPError
 import logging
@@ -62,6 +66,15 @@ class Confluence(AtlassianRestAPI):
         """
         return (self.get_page_by_title(space, title) or {}).get('id')
 
+    def get_blog_post_id(self, space, title):
+        """
+        Provide content id from search result by title and space
+        :param space: SPACE key
+        :param title: title
+        :return:
+        """
+        return self.get_page_id(space, title)
+
     def get_page_space(self, page_id):
         """
         Provide space key from content id
@@ -108,6 +121,15 @@ class Confluence(AtlassianRestAPI):
         url = 'rest/api/content/{page_id}?expand={expand}'.format(page_id=page_id, expand=expand)
         return self.get(url)
 
+    def get_blog_post_by_id(self, blog_post_id):
+        """
+        Get blog post by ID
+        :param page_id: Content ID
+        :param expand: OPTIONAL: expand e.g. history
+        :return:
+        """
+        return self.get_page_by_id(blog_post_id, None)
+
     def get_page_labels(self, page_id, prefix=None, start=None, limit=None):
         """
         Returns the list of labels on a piece of Content.
@@ -129,6 +151,20 @@ class Confluence(AtlassianRestAPI):
         if limit is not None:
             params['limit'] = int(limit)
         return self.get(url, params=params)
+
+    def get_blog_post_labels(self, blog_post_id, prefix=None, start=None, limit=None):
+        """
+         Returns the list of labels on a piece of Content.
+        :param page_id: A string containing the id of the labels content container.
+        :param prefix: OPTIONAL: The prefixes to filter the labels with {@see Label.Prefix}.
+                                Default: None.
+        :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
+        :param limit: OPTIONAL: The limit of the number of labels to return, this may be restricted by
+                            fixed system limits. Default: 200.
+        :return: The JSON data returned from the content/{id}/label endpoint, or the results of the
+                 callback. Will raise requests.HTTPError on bad input, potentially.
+        """
+        return self.get_page_labels(blog_post_id, prefix, start, limit)
 
     def get_draft_page_by_id(self, page_id, status='draft'):
         """
@@ -153,6 +189,26 @@ class Confluence(AtlassianRestAPI):
         params = {}
         if label:
             params['cql'] = 'type={type}%20AND%20label={label}'.format(type='page',
+                                                                       label=label)
+        if start:
+            params['start'] = start
+        if limit:
+            params['limit'] = limit
+        return (self.get(url, params=params) or {}).get('results')
+
+    def get_all_blog_posts_by_label(self, label, start=0, limit=50):
+        """
+        Get all blog posts by label
+        :param label:
+        :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
+        :param limit: OPTIONAL: The limit of the number of pages to return, this may be restricted by
+                      fixed system limits. Default: 50
+        :return:
+        """
+        url = 'rest/api/content/search'
+        params = {}
+        if label:
+            params['cql'] = 'type={type}%20AND%20label={label}'.format(type='blogpost',
                                                                        label=label)
         if start:
             params['start'] = start
@@ -270,14 +326,22 @@ class Confluence(AtlassianRestAPI):
             params['status'] = status
         return self.delete(url, params=params)
 
+    def remove_blog_post(self, blog_post_id):
+        """
+        This method removes a blog_post
+        :param page_id:
+        :return:
+        """
+        return self.remove_page(blog_post_id, None, False)
+
     def create_page(self, space, title, body, parent_id=None, type='page'):
         """
         Create page from scratch
-        :param space:
-        :param title:
-        :param body:
-        :param parent_id:
-        :param type:
+        :param space: spacekey e.g. CFELCMI
+        :param title: Title of the new page
+        :param body: HTML content of the new page
+        :param parent_id: parent id
+        :param type: Potentially a blog post can be created here, but you may use create_blog_post
         :return:
         """
         log.info('Creating {type} "{space}" -> "{title}"'.format(space=space, title=title, type=type))
@@ -296,12 +360,12 @@ class Confluence(AtlassianRestAPI):
     def create_blog_post(self, space, title, body):
         """
         Create a blog post from scratch
-        :param space:
-        :param title:
-        :param body:
+        :param space: spacekey e.g. CFELCMI
+        :param title: Title of the new page
+        :param body: HTML content of the new page
         :return:
         """
-        self.create_page(space, title, body, None, 'blogpost')
+        return self.create_page(space, title, body, None, 'blogpost')
 
     def get_all_spaces(self, start=0, limit=500):
         """
@@ -373,6 +437,15 @@ class Confluence(AtlassianRestAPI):
         data = {'prefix': 'global',
                 'name': label}
         return self.post(path=url, data=data)
+
+    def set_blog_post_label(self, page_id, label):
+        """
+        Set a label on a blog post
+        :param page_id: content_id format
+        :param label: label to add
+        :return:
+        """
+        return self.set_page_label(page_id, label)
 
     def history(self, page_id):
         url = 'rest/api/content/{0}/history'.format(page_id)
@@ -476,6 +549,18 @@ class Confluence(AtlassianRestAPI):
                 data['ancestors'] = [{'type': 'page', 'id': parent_id}]
 
             return self.put('rest/api/content/{0}'.format(page_id), data=data)
+
+    def update_blog_post(self, blog_post_id, title, body, minor_edit=False):
+        """
+       Update a blog post if already exist
+        :param blog_post_id:
+        :param title:
+        :param body:
+        :param minor_edit: Indicates whether to notify watchers about changes.
+            If False then notifications will be sent.
+        :return:
+        """
+        return self.update_page(None, blog_post_id, title, body, "blogpost", minor_edit)
 
     def update_or_create(self, parent_id, title, body):
         """
@@ -701,6 +786,14 @@ class Confluence(AtlassianRestAPI):
         :return: PDF File
         """
         return self.get_page_as_pdf(page_id)
+
+    def export_blog_post(self, blog_post_id):
+        """
+        Alias method for export blog post as pdf
+        :param blog_post_id:
+        :return:
+        """
+        return self.get_page_as_pdf(blog_post_id)
 
     def get_descendant_page_id(self, space, parent_id, title):
         """

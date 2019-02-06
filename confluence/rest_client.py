@@ -17,7 +17,16 @@ class AtlassianRestAPI(object):
     form_token_headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                           'X-Atlassian-Token': 'no-check'}
 
-    def __init__(self, url, username, password, timeout=60, api_root='rest/api', api_version='latest', verify_ssl=True):
+    def __init__(self, username, password, url="https://confluence.desy.de/", timeout=60, api_root='rest/api', api_version='latest', verify_ssl=True):
+        """
+        :param username: The username NOT full name. E.g. afrank or jkuepper
+        :param password: The password related to the user
+        :param url: The base url of the server. Defaults to the desy Server Instance
+        :param timeout: Seconds for timing out the connection. Defaults to 60 seconds
+        :param api_root: Prefix for REST api urls. Defaults to 'rest/api'
+        :param api_version: API version. Defaults to the latest
+        :param verify_ssl: Check if connection is properly secured
+        """
         self.url = url
         self.username = username
         self.password = password
