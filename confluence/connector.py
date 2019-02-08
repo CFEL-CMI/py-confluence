@@ -34,11 +34,11 @@ class Confluence(AtlassianRestAPI):
             log.info('Page "{title}" does not exist in space "{space}"'.format(space=space, title=title))
             return False
 
-    def get_page_child_by_type(self, page_id, type='page', start=None, limit=None):
+    def get_page_child_by_type(self, page_id, content_type='page', start=None, limit=None):
         """
         Provide content by type (page, blog, comment)
         :param page_id: A string containing the id of the type content container.
-        :param type:
+        :param content_type: page or blogpost
         :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
         :param limit: OPTIONAL: how many items should be returned after the start index. Default: Site limit 200.
         :return:
@@ -49,7 +49,7 @@ class Confluence(AtlassianRestAPI):
         if limit is not None:
             params['limit'] = int(limit)
 
-        url = 'rest/api/content/{page_id}/child/{type}'.format(page_id=page_id, type=type)
+        url = 'rest/api/content/{page_id}/child/{type}'.format(page_id=page_id, type=content_type)
         log.info(url)
         try:
             return (self.get(url, params=params) or {}).get('results')
@@ -121,14 +121,14 @@ class Confluence(AtlassianRestAPI):
         url = 'rest/api/content/{page_id}?expand={expand}'.format(page_id=page_id, expand=expand)
         return self.get(url)
 
-    def get_blog_post_by_id(self, blog_post_id):
+    def get_blog_post_by_id(self, blog_post_id, expand=None):
         """
         Get blog post by ID
-        :param page_id: Content ID
+        :param blog_post_id: Content ID
         :param expand: OPTIONAL: expand e.g. history
         :return:
         """
-        return self.get_page_by_id(blog_post_id, None)
+        return self.get_page_by_id(blog_post_id, expand)
 
     def get_page_labels(self, page_id, prefix=None, start=None, limit=None):
         """
@@ -155,7 +155,7 @@ class Confluence(AtlassianRestAPI):
     def get_blog_post_labels(self, blog_post_id, prefix=None, start=None, limit=None):
         """
          Returns the list of labels on a piece of Content.
-        :param page_id: A string containing the id of the labels content container.
+        :param blog_post_id: A string containing the id of the labels content container.
         :param prefix: OPTIONAL: The prefixes to filter the labels with {@see Label.Prefix}.
                                 Default: None.
         :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
@@ -329,32 +329,32 @@ class Confluence(AtlassianRestAPI):
     def remove_blog_post(self, blog_post_id):
         """
         This method removes a blog_post
-        :param page_id:
+        :param blog_post_id: Id of the blogpost to be removed
         :return:
         """
         return self.remove_page(blog_post_id, None, False)
 
-    def create_page(self, space, title, body, parent_id=None, type='page'):
+    def create_page(self, space, title, body, parent_id=None, content_type='page'):
         """
         Create page from scratch
         :param space: spacekey e.g. CFELCMI
         :param title: Title of the new page
         :param body: HTML content of the new page
         :param parent_id: parent id
-        :param type: Potentially a blog post can be created here, but you may use create_blog_post
+        :param content_type: Potentially a blog post can be created here, but you may use create_blog_post
         :return:
         """
-        log.info('Creating {type} "{space}" -> "{title}"'.format(space=space, title=title, type=type))
+        log.info('Creating {type} "{space}" -> "{title}"'.format(space=space, title=title, type=content_type))
         url = 'rest/api/content/'
         data = {
-            'type': type,
+            'type': content_type,
             'title': title,
             'space': {'key': space},
             'body': {'storage': {
                 'value': body,
                 'representation': 'storage'}}}
         if parent_id:
-            data['ancestors'] = [{'type': type, 'id': parent_id}]
+            data['ancestors'] = [{'type': content_type, 'id': parent_id}]
         return self.post(url, data=data)
 
     def create_blog_post(self, space, title, body):
@@ -368,39 +368,39 @@ class Confluence(AtlassianRestAPI):
         return self.create_page(space, title, body, None, 'blogpost')
 
     # TODO Test this function
-    def create_blog_post_with_attachment(self, space, title, body, filepath, macroinbody=True):
+    def create_blog_post_with_attachment(self, space, title, body, file_path, macro_in_body=True):
         """
         Create a blog post with a single attachment
         :param space: spacekey e.g. CFELCMI
         :param title: Title of the new blog post
         :param body:  HTML content of the new blog post
-        :param filepath: of Local filepath to the new attachmentfile
-        :param macroinbody Define if an attachment macro showing the attachment file should be included. Defaults true
+        :param file_path: of Local file path to the new attachment file
+        :param macro_in_body Define if an attachment macro showing the attachment file should be included. Defaults true
         :return:
         """
-        return self.create_blog_post_with_attachments(space, title, body, [filepath], macroinbody)
+        return self.create_blog_post_with_attachments(space, title, body, [file_path], macro_in_body)
 
     # TODO Test this function
-    def create_blog_post_with_attachments(self, space, title, body, list_of_attachment_filepaths, macrosinbody=True):
+    def create_blog_post_with_attachments(self, space, title, body, list_of_attachment_file_paths, macro_in_body=True):
         """
         Create a blog post with attachments
         :param space: spacekey e.g. MAS
         :param title: Title of the new blog post
         :param body: HTML content of the new blog post
-        :param list_of_attachment_filepaths: List of Local filepaths to the new attachmentfiles
-        :param macroinbody Define if attachment macros showing the attachment files should be included. Defaults true
+        :param list_of_attachment_file_paths: List of local file paths to the new attachment files
+        :param macro_in_body Define if attachment macros showing the attachment files should be included. Defaults true
         :return:
         """
-        newblog = self.create_blog_post(space, title, body)
-        for filepath in list_of_attachment_filepaths:
-            attachment = self.attach_file(filepath, newblog.id)
-            self.update_blog_post(newblog.id, title, body + self.attachment_macro(attachment.id), minor_edit=True)
-        return newblog
+        new_blog = self.create_blog_post(space, title, body)
+        for file_path in list_of_attachment_file_paths:
+            attachment = self.attach_file(file_path, new_blog.id)
+            if macro_in_body:
+                self.update_blog_post(new_blog.id, title, body + self.attachment_macro(attachment.id), minor_edit=True)
+        return new_blog
 
-    #TODO write this function
+    # TODO write this function
     def attachment_macro(self, attachment_id):
         return "<macro>"+attachment_id+"</macro>"
-
 
     def get_all_spaces(self, start=0, limit=500):
         """
@@ -433,13 +433,12 @@ class Confluence(AtlassianRestAPI):
         :type  comment: ``str``
         """
         page_id = self.get_page_id(space=space, title=title) if page_id is None else page_id
-        type = 'attachment'
         if page_id is not None:
             extension = os.path.splitext(filename)[-1]
             content_type = self.content_types.get(extension, "application/binary")
             comment = comment if comment else "Uploaded {filename}.".format(filename=filename)
             data = {
-                'type': type,
+                'type': 'attachment',
                 "fileName": filename,
                 "contentType": content_type,
                 "comment": comment,
@@ -467,7 +466,6 @@ class Confluence(AtlassianRestAPI):
         self.update_page(False, page_id, title, self.get_page_by_id(page_id, expand="body.storage.content")
                          + self.attachment_macro(attachment.id))
         return attachment
-
 
     def set_page_label(self, page_id, label):
         """
@@ -557,7 +555,7 @@ class Confluence(AtlassianRestAPI):
             log.info('Content of {page_id} differs'.format(page_id=page_id))
             return False
 
-    def update_page(self, parent_id, page_id, title, body, type='page',
+    def update_page(self, parent_id, page_id, title, body, content_type='page',
                     minor_edit=False):
         """
         Update page if already exist
@@ -565,12 +563,12 @@ class Confluence(AtlassianRestAPI):
         :param page_id:
         :param title:
         :param body:
-        :param type:
+        :param content_type: page of blogpost. Defaults to page
         :param minor_edit: Indicates whether to notify watchers about changes.
             If False then notifications will be sent.
         :return:
         """
-        log.info('Updating {type} "{title}"'.format(title=title, type=type))
+        log.info('Updating {type} "{title}"'.format(title=title, type=content_type))
 
         if self.is_page_content_is_already_updated(page_id, body):
             return self.get_page_by_id(page_id)
@@ -579,7 +577,7 @@ class Confluence(AtlassianRestAPI):
 
             data = {
                 'id': page_id,
-                'type': type,
+                'type': content_type,
                 'title': title,
                 'body': {'storage': {
                     'value': body,
