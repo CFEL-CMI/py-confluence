@@ -3,19 +3,10 @@
 #
 # Copyright (C) 2018 Alexander Franke
 
-from confluence import connector
+from confluence import *
 
-confluence = connector.Confluence(
-    username='USERNAME e.g. afrank or jkuepper',
-    password='password'
-)
-
-newblog = confluence.create_blog_post(
-    space='~afrank',
-    title='testblog with label33',
-    body='This is the body. You can use <strong>HTML tags</strong>!'
-)
-
-labels = confluence.set_blog_post_label(newblog["id"], "testlabel")
-
-
+blog = ConfluenceBlogPost("username", "password", "spacekey")
+blog.title = "Blogtitle"
+blog.labels = "label1,label2"
+blog.attachments = "/tmp/untitled.html"
+blog.publish()

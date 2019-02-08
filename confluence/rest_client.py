@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; fill-column: 120 -*-
 #
-# Copyright (C) 2018 Alexander Franke
+# Copyright (C) 2018 Alexander Franke, Jan Petermann
 import json
 import logging
 from six.moves.urllib.parse import urlencode
@@ -17,8 +17,8 @@ class AtlassianRestAPI(object):
     form_token_headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                           'X-Atlassian-Token': 'no-check'}
 
-    def __init__(self, username, password, url="https://confluence.desy.de/", timeout=60, api_root='rest/api',
-                 api_version='latest', verify_ssl=True):
+    def __init__(self, username, password, timeout=60, api_root='rest/api',
+                 api_version='latest', verify_ssl=True, **kwargs):
         """
         :param username: The username NOT full name. E.g. afrank or jkuepper
         :param password: The password related to the user
@@ -28,7 +28,7 @@ class AtlassianRestAPI(object):
         :param api_version: API version. Defaults to the latest
         :param verify_ssl: Check if connection is properly secured
         """
-        self.url = url
+        self.url = kwargs.get('url', 'https://confluence.desy.de/')
         self.username = username
         self.password = password
         self.timeout = int(timeout)
@@ -141,6 +141,15 @@ class AtlassianRestAPI(object):
                 return
 
     def post(self, path, data=None, headers=None, files=None, params=None):
+        """
+        Post a request to the server
+        :param path:
+        :param data:
+        :param headers:
+        :param files:
+        :param params:
+        :return:
+        """
         try:
             return self.request('POST', path=path, data=data, headers=headers, files=files, params=params).json()
         except ValueError:
@@ -148,6 +157,14 @@ class AtlassianRestAPI(object):
             return None
 
     def put(self, path, data=None, headers=None, files=None):
+        """
+        Put a request to the server. (Put may also update)
+        :param path:
+        :param data:
+        :param headers:
+        :param files:
+        :return:
+        """
         try:
             return self.request('PUT', path=path, data=data, headers=headers, files=files).json()
         except ValueError:

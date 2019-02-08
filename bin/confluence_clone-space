@@ -33,6 +33,14 @@ import concurrent.futures
 
 
 def main():
+    # Get Authentification Token
+    def auth(user, pwd, srv):
+        try:
+            srv.confluence2.logout(token)
+        finally:
+            return srv.confluence2.login(user, pwd)
+
+
     ### BEGIN command line arguments
     parser = argparse.ArgumentParser(description='This python3 module creates a local confluence backup of a specified space. '
                                      + 'The backup is accessible without any confluence installation '
@@ -66,7 +74,7 @@ def main():
     print ("Please enter the password for User " + user)
     pwd = getpass.getpass()
     srv = xmlrpc.client.ServerProxy(servername+'rpc/xmlrpc')
-    token   = auth(user,pwd,srv)
+    token   = auth(user, pwd, srv)
     ### END settings for connection to server
 
     ### BEGIN git repo
@@ -219,14 +227,6 @@ def main():
     r.index.commit("Confluence space backup of " + str(datetime.datetime.now()))
     print('Backup finished successfully.')
 
-
-
-# Get Authentification Token
-def auth(user,pwd,srv):
-    try:
-        srv.confluence2.logout(token)
-    finally:
-        return srv.confluence2.login(user, pwd)
 
 
 

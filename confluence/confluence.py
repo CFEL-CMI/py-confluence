@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; fill-column: 120 -*-
 #
-# Copyright (C) 2018 Alexander Franke
+# Copyright (C) 2018 Alexander Franke, Jan Petermann
 
 from .rest_client import AtlassianRestAPI
 from requests import HTTPError
@@ -95,16 +95,19 @@ class Confluence(AtlassianRestAPI):
                  callback. Will raise requests.HTTPError on bad input, potentially.
                  If it has IndexError then return the None.
         """
+        if space is None or title is None:
+            raise Exception("No title or spacekey provided")
+
         url = 'rest/api/content'
         params = {}
         if start is not None:
             params['start'] = int(start)
         if limit is not None:
             params['limit'] = int(limit)
-        if space is not None:
-            params['spaceKey'] = str(space)
-        if space is not None:
-            params['title'] = str(title)
+
+        params['spaceKey'] = str(space)
+        params['title'] = str(title)
+
         try:
             return (self.get(url, params=params) or {}).get('results')[0]
         except IndexError as e:
@@ -365,7 +368,7 @@ class Confluence(AtlassianRestAPI):
         :param body: HTML content of the new page
         :return:
         """
-        return self.create_page(space, title, body, None, 'blogpost')
+        return self.create_page(space, title, body, content_type='blogpost')
 
     # TODO Test this function
     def create_blog_post_with_attachment(self, space, title, body, file_path, macro_in_body=True):
@@ -399,7 +402,8 @@ class Confluence(AtlassianRestAPI):
         return new_blog
 
     # TODO write this function
-    def attachment_macro(self, attachment_id):
+    @staticmethod
+    def attachment_macro(attachment_id):
         return "<macro>"+attachment_id+"</macro>"
 
     def get_all_spaces(self, start=0, limit=500):
@@ -433,6 +437,7 @@ class Confluence(AtlassianRestAPI):
         :type  comment: ``str``
         """
         page_id = self.get_page_id(space=space, title=title) if page_id is None else page_id
+
         if page_id is not None:
             extension = os.path.splitext(filename)[-1]
             content_type = self.content_types.get(extension, "application/binary")
