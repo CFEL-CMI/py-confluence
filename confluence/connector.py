@@ -367,6 +367,41 @@ class Confluence(AtlassianRestAPI):
         """
         return self.create_page(space, title, body, None, 'blogpost')
 
+    # TODO Test this function
+    def create_blog_post_with_attachment(self, space, title, body, filepath, macroinbody=True):
+        """
+        Create a blog post with a single attachment
+        :param space: spacekey e.g. CFELCMI
+        :param title: Title of the new blog post
+        :param body:  HTML content of the new blog post
+        :param filepath: of Local filepath to the new attachmentfile
+        :param macroinbody Define if an attachment macro showing the attachment file should be included. Defaults true
+        :return:
+        """
+        return self.create_blog_post_with_attachments(space, title, body, [filepath], macroinbody)
+
+    # TODO Test this function
+    def create_blog_post_with_attachments(self, space, title, body, list_of_attachment_filepaths, macrosinbody=True):
+        """
+        Create a blog post with attachments
+        :param space: spacekey e.g. MAS
+        :param title: Title of the new blog post
+        :param body: HTML content of the new blog post
+        :param list_of_attachment_filepaths: List of Local filepaths to the new attachmentfiles
+        :param macroinbody Define if attachment macros showing the attachment files should be included. Defaults true
+        :return:
+        """
+        newblog = self.create_blog_post(space, title, body)
+        for filepath in list_of_attachment_filepaths:
+            attachment = self.attach_file(filepath, newblog.id)
+            self.update_blog_post(newblog.id, title, body + self.attachment_macro(attachment.id), minor_edit=True)
+        return newblog
+
+    #TODO write this function
+    def attachment_macro(self, attachment_id):
+        return "<macro>"+attachment_id+"</macro>"
+
+
     def get_all_spaces(self, start=0, limit=500):
         """
         Get all spaces with provided limit
@@ -425,6 +460,14 @@ class Confluence(AtlassianRestAPI):
         else:
             log.warning("No 'page_id' found, not uploading attachments")
             return None
+
+    # TODO Test this function
+    def attach_file_with_macro(self, filename, page_id=None, title=None, space=None, comment=None):
+        attachment = self.attach_file(filename, page_id, title, space, comment)
+        self.update_page(False, page_id, title, self.get_page_by_id(page_id, expand="body.storage.content")
+                         + self.attachment_macro(attachment.id))
+        return attachment
+
 
     def set_page_label(self, page_id, label):
         """
