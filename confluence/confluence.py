@@ -396,7 +396,7 @@ class Confluence(AtlassianRestAPI):
         """
         new_blog = self.create_blog_post(space, title, body)
         for file_path in list_of_attachment_file_paths:
-            attachment = self.attach_file(file_path, new_blog.id)
+            attachment = self.attach_file_to_content_by_id(file_path, new_blog.id)
             if macro_in_body:
                 self.update_blog_post(new_blog.id, title, body + self.attachment_macro(attachment.id), minor_edit=True)
         return new_blog
@@ -421,7 +421,7 @@ class Confluence(AtlassianRestAPI):
             params['start'] = start
         return (self.get(url, params=params) or {}).get('results')
 
-    def attach_file(self, filename, page_id=None, title=None, space=None, comment=None):
+    def attach_file_to_content_by_id(self, filename, page_id=None, title=None, space=None, comment=None):
         """
         Attach (upload) a file to a page, if it exists it will update the
         automatically version the new file and keep the old one.
@@ -467,7 +467,7 @@ class Confluence(AtlassianRestAPI):
 
     # TODO Test this function
     def attach_file_with_macro(self, filename, page_id=None, title=None, space=None, comment=None):
-        attachment = self.attach_file(filename, page_id, title, space, comment)
+        attachment = self.attach_file_to_content_by_id(filename, page_id, title, space, comment)
         self.update_page(False, page_id, title, self.get_page_by_id(page_id, expand="body.storage.content")
                          + self.attachment_macro(attachment.id))
         return attachment

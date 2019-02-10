@@ -20,7 +20,6 @@ class ConfluenceContent(Confluence):
         :param title: The title of the new content
         :param labels: A list of labels to be added to the new content
         :param content: HTML string of the body for the new content
-        :param permissions: List of permissions for the new page, if they should be different from space permissions
         :param attachments: List of file names to be attached to the new page/blogpost
         """
 
@@ -82,8 +81,20 @@ class ConfluenceContent(Confluence):
 
 class ConfluenceBlogPost(ConfluenceContent):
     def __init__(self, username, password, spacekey, title=None, labels=None,
-                 content=None, permissions=None, **kwargs):
-        super().__init__(username, password, spacekey, title, labels, content, permissions, **kwargs)
+                 content=None, attachments=None, **kwargs):
+        """
+        Creates a new blogpost which can be published to a confluence server with the
+        function publish().
+        :param username: The username to publish the new blog post
+        :param password: The password of the user
+        :param spacekey: Spacekey NOT name of the space for the new content. E.g. CFELCMI
+        :param title: The title of the new blog post
+        :param labels: An iterable or comma seperated string of labels to be set
+        :param content: The content of the new blog post, in HTML format
+        :param attachments: An iterable or comma seperated string of filepaths to attach
+        :param kwargs: E.g. url=NEWSERVERURL, url defaults to confluence.desy.de
+        """
+        super().__init__(username, password, spacekey, title, labels, content, **kwargs)
 
     # @property
     # def date(self):
@@ -106,8 +117,11 @@ class ConfluenceBlogPost(ConfluenceContent):
     # TODO add the ability to set a date.
     # publish, get blog id, set labels, set permissions and return link / blog post id
     def publish(self):
+        """
+        Send a blogpost to the server
+        :return: json object with infos of the new blog post
+        """
         blogpost = Confluence.create_blog_post(self, self.spacekey, self.title, self.content)
-        print(blogpost)
         try:
             for label in self.labels:
                 Confluence.set_page_label(self, blogpost["id"], label)
@@ -116,34 +130,63 @@ class ConfluenceBlogPost(ConfluenceContent):
 
         try:
             for attachment in self.attachments:
-                Confluence.attach_file(self, attachment, blogpost["id"])
+                Confluence.attach_file_to_content_by_id(self, attachment, blogpost["id"])
         except TypeError:
             pass
 
-        return blogpost
+        return Confluence.get_blog_post_by_id(blogpost["id"])
 
 
 class ConfluencePage(ConfluenceContent):
     def __init__(self, username, password, spacekey, title=None, labels=None,
-                 content=None, permissions=None, parent_id=None, **kwargs):
-        super().__init__(username, password, spacekey, title, labels, content, permissions, **kwargs)
+                 content=None, parent_id=None, attachments=None, **kwargs):
+        """
+        Creates a new page which can be published to a confluence server with the
+        function publish().
+        :param username: The username to publish the new page
+        :param password: The password of the user
+        :param spacekey: Spacekey NOT name of the space for the new content. E.g. CFELCMI
+        :param title: The title of the new page
+        :param labels: An iterable or comma seperated string of labels to be set
+        :param content: The content of the new blog post, in HTML format
+        :param parent_id: The Id of the parent page. Recommended would be atleast the id of the space homepage.
+        You may use publish_as_child_of_space_homepage
+        :param attachments: An iterable or comma seperated string of filepaths to attach
+        :param kwargs: E.g. url=NEWSERVERURL, url defaults to confluence.desy.de
+        """
+        super().__init__(username, password, spacekey, title, labels, content, **kwargs)
         self.parent_id = parent_id
 
-    # publish, get blog id, set labels, set permissions and return link / blog post id
+    def publish_as_child_of_space_homepage(self):
+        """
+        Send a new page to the server with the parent being the homepage of the space.
+        Overwrites self.parent_id, needs self.spacekey to be set
+        :return: json object with infos of the new page
+        """
+        self.parent_id = Confluence.get_space(self, self.spacekey,expand="homepage")["homepage"]["id"]
+        return self.publish()
 
     def publish(self):
+        """
+        Send a new page to the server. Required. self.title and self.spacekey to be set.
+        :return: json object with infos of the new page
+        """
         page = Confluence.create_page(self, self.spacekey, self.title, self.content, self.parent_id, 'page')
 
         try:
-            for label in self.__labels:
-                Confluence.set_page_label(self, page["id"], label)
+           for label in self.__labels:
+               Confluence.set_page_label(self, page["id"], label)
         except TypeError:
+            pass
+        except AttributeError:
             pass
 
         try:
             for attachment in self.__attachments:
-                Confluence.attach_file(self, attachment, page["id"])
+                Confluence.attach_file_to_content_by_id(self, attachment, page["id"])
         except TypeError:
             pass
+        except AttributeError:
+            pass
 
-        return page
+        return Confluence.get_page_by_id(self, page["id"])
