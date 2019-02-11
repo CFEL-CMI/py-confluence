@@ -5,6 +5,7 @@
 
 from .rest_client import AtlassianRestAPI
 from requests import HTTPError
+from xml.etree import ElementTree
 import logging
 import os
 
@@ -370,41 +371,26 @@ class Confluence(AtlassianRestAPI):
         """
         return self.create_page(space, title, body, content_type='blogpost')
 
-    # TODO Test this function
-    def create_blog_post_with_attachment(self, space, title, body, file_path, macro_in_body=True):
-        """
-        Create a blog post with a single attachment
-        :param space: spacekey e.g. CFELCMI
-        :param title: Title of the new blog post
-        :param body:  HTML content of the new blog post
-        :param file_path: of Local file path to the new attachment file
-        :param macro_in_body Define if an attachment macro showing the attachment file should be included. Defaults true
-        :return:
-        """
-        return self.create_blog_post_with_attachments(space, title, body, [file_path], macro_in_body)
 
-    # TODO Test this function
-    def create_blog_post_with_attachments(self, space, title, body, list_of_attachment_file_paths, macro_in_body=True):
-        """
-        Create a blog post with attachments
-        :param space: spacekey e.g. MAS
-        :param title: Title of the new blog post
-        :param body: HTML content of the new blog post
-        :param list_of_attachment_file_paths: List of local file paths to the new attachment files
-        :param macro_in_body Define if attachment macros showing the attachment files should be included. Defaults true
-        :return:
-        """
-        new_blog = self.create_blog_post(space, title, body)
-        for file_path in list_of_attachment_file_paths:
-            attachment = self.attach_file_to_content_by_id(file_path, new_blog.id)
-            if macro_in_body:
-                self.update_blog_post(new_blog.id, title, body + self.attachment_macro(attachment.id), minor_edit=True)
-        return new_blog
-
-    # TODO write this function
     @staticmethod
-    def attachment_macro(attachment_id):
-        return "<macro>"+attachment_id+"</macro>"
+    def attachment_macro(filename, page_id):
+        acmacro = ElementTree.Element('ac:structured-macro')
+        acmacro.set('ac:name', 'view-file')
+        acmacro.set('ac:schema-version', '1')
+
+        acparameter = ElementTree.SubElement(acmacro, 'ac:parameter')
+        acparameter.set('ac:name', 'name')
+
+        riattachment = ElementTree.SubElement(acparameter, 'ri:attachment')
+        riattachment.set('ri:filename', filename)
+
+        ricontententity = ElementTree.SubElement(riattachment, 'ri:content-entity')
+        ricontententity.set('ri:content-id', page_id)
+        acparameter2 = ElementTree.SubElement(acmacro, 'ac:parameter')
+        acparameter2.set('ac:name', 'height')
+        acparameter2.text('250')
+
+        return ElementTree.dump(acmacro)
 
     def get_all_spaces(self, start=0, limit=500):
         """
@@ -461,16 +447,20 @@ class Confluence(AtlassianRestAPI):
             with open(filename, 'rb') as infile:
                 return self.post(path=path, data=data, headers=headers,
                                  files={'file': (filename, infile, content_type)})
+
+
         else:
             log.warning("No 'page_id' found, not uploading attachments")
             return None
 
     # TODO Test this function
-    def attach_file_with_macro(self, filename, page_id=None, title=None, space=None, comment=None):
-        attachment = self.attach_file_to_content_by_id(filename, page_id, title, space, comment)
-        self.update_page(False, page_id, title, self.get_page_by_id(page_id, expand="body.storage.content")
-                         + self.attachment_macro(attachment.id))
-        return attachment
+    def attach_file_to_content_by_id_with_macro(self, file_path, content_id, parent_id=None,
+                                                title=None):
+
+        attachment = self.attach_file_to_content_by_id(file_path, content_id)
+        old_content = self.get_page_by_id(content_id, "body.storage.content")
+        new_content = old_content + self.attachment_macro(attachment["results"][0]["title"], content_id)
+        self.update_page(parent_id, content_id, title, new_content, minor_edit=True)
 
     def set_page_label(self, page_id, label):
         """
