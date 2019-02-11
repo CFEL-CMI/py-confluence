@@ -5,8 +5,11 @@
 
 from confluence import *
 
-blog = ConfluenceBlogPost("username", "password", "spacekey")
+blog = Blogpost("username", "password", spacekey="spacekey")
 blog.title = "Blogtitle"
 blog.labels = "label1,label2"
 blog.attachments = "/tmp/untitled.html"
-blog.publish()
+blog.create()
+
+content = ConfluenceContent.get_content_from_server("USERNAME","PASSWORD","CONTENTID")
+print(content)
