@@ -10,6 +10,7 @@ import logging
 import os
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
 
 class Confluence(AtlassianRestAPI):
@@ -371,7 +372,6 @@ class Confluence(AtlassianRestAPI):
         """
         return self.create_page(space, title, body, content_type='blogpost')
 
-
     @staticmethod
     def attachment_macro(filename, page_id):
         acmacro = ElementTree.Element('ac:structured-macro')
@@ -388,9 +388,8 @@ class Confluence(AtlassianRestAPI):
         ricontententity.set('ri:content-id', page_id)
         acparameter2 = ElementTree.SubElement(acmacro, 'ac:parameter')
         acparameter2.set('ac:name', 'height')
-        acparameter2.text('250')
-
-        return ElementTree.dump(acmacro)
+        acparameter2.text = '250'
+        return ElementTree.tostring(acmacro).decode()
 
     def get_all_spaces(self, start=0, limit=500):
         """
@@ -447,20 +446,16 @@ class Confluence(AtlassianRestAPI):
             with open(filename, 'rb') as infile:
                 return self.post(path=path, data=data, headers=headers,
                                  files={'file': (filename, infile, content_type)})
-
-
         else:
             log.warning("No 'page_id' found, not uploading attachments")
             return None
 
-    # TODO Test this function
-    def attach_file_to_content_by_id_with_macro(self, file_path, content_id, parent_id=None,
-                                                title=None):
-
+    def attach_file_to_content_by_id_with_macro(self, file_path, content_id, content_type, title, parent_id=None):
         attachment = self.attach_file_to_content_by_id(file_path, content_id)
         old_content = self.get_page_by_id(content_id, "body.storage.content")
-        new_content = old_content + self.attachment_macro(attachment["results"][0]["title"], content_id)
-        self.update_page(parent_id, content_id, title, new_content, minor_edit=True)
+        new_content = old_content["body"]["storage"]["value"] + self.attachment_macro(
+            attachment["results"][0]["title"], content_id)
+        returnstr = self.update_page(parent_id, content_id, title, new_content, minor_edit=True, content_type=content_type)
 
     def set_page_label(self, page_id, label):
         """

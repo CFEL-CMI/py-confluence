@@ -5,15 +5,17 @@
 
 
 from .confluence import Confluence
-
-
+import logging
 # from datetime import date
+
+log = logging.getLogger(__name__)
+log.setLevel(10)
 
 
 class ConfluenceContent(Confluence):
 
-    def __init__(self, username, password, spacekey, title=None, labels=None, content=None,
-                 attachments=None, append_attachment_macros=True, parent_id=None, date=None, content_type=None, **kwargs):
+    def __init__(self, username, password, spacekey, title=None, labels=None, content=None, attachments=None,
+                 append_attachment_macros=True, parent_id=None, date=None, content_type=None, **kwargs):
         """
         Init function of ConfluenceContent.
         :param username: The username e.g. afrank or jkuepper
@@ -102,14 +104,12 @@ class ConfluenceContent(Confluence):
         Add attachments to the content after creation (self.id is set)
         :return:
         """
-        try:
-            for attachment in self.attachments:
-                if self.append_attachment_macros:
-                    Confluence.attach_file_to_content_by_id_with_macro(self, attachment, self.id)
-                else:
-                    Confluence.attach_file_to_content_by_id(self, attachment, self.id)
-        except (TypeError, AttributeError):
-            pass
+        for attachment in self.attachments:
+            if self.append_attachment_macros:
+                Confluence.attach_file_to_content_by_id_with_macro(self, attachment, self.id,
+                                                                   self.content_type, self.title)
+            else:
+                Confluence.attach_file_to_content_by_id(self, attachment, self.id)
 
     def create(self):
         """
@@ -187,8 +187,7 @@ class Page(ConfluenceContent):
         :param title: The title of the new page
         :param labels: An iterable or comma separated string of labels to be set
         :param content: The content of the new blog post, in HTML format
-        :param parent_id: The Id of the parent page. Recommended would be at least the id of the space homepage.
-        You may use publish_as_child_of_space_homepage
+        :param parent_id: The Id of the parent page. If not set id of the space homepage will be assumed.
         :param attachments: An iterable or comma separated string of file paths to attach
         :param kwargs: E.g. url=NEWSERVERURL, url defaults to confluence.desy.de
         """
@@ -200,5 +199,3 @@ class Page(ConfluenceContent):
                          content_type='page',
                          **kwargs)
         self.parent_id = parent_id
-
-
