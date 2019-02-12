@@ -5,11 +5,18 @@
 
 from confluence import *
 
-blog = Blogpost("username", "password", spacekey="spacekey")
+# create a new blog post
+confluence = Confluence(username="USERNAME", password="PASSWORD")
+blog = Blogpost(confluence)
 blog.title = "Blogtitle"
 blog.labels = "label1,label2"
 blog.attachments = "/tmp/untitled.html"
-blog.create()
+blog.spacekey = "SPACEKEY"
+blog.publish()
 
-content = ConfluenceContent.get_content_from_server("USERNAME","PASSWORD","CONTENTID")
-print(content)
+
+# get a page from the server and modify it
+page = Page(confluence, content_id="CONTENTID")
+print(page)
+page.labels = "newlabelforpage"
+page.update()
