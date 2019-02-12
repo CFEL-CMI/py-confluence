@@ -111,7 +111,7 @@ class ConfluenceContent(Confluence):
             else:
                 Confluence.attach_file_to_content_by_id(self, attachment, self.id)
 
-    def create(self):
+    def publish(self):
         """
         Send a blogpost or a page to the server. If page has no parent_id, set it to the space homepage
         :return: Prints the link and returns a json object with information of the new created content
@@ -165,18 +165,18 @@ class ConfluenceContent(Confluence):
         return newcontent
 
     def __repr__(self):
-        return "contenttype: {contenttype}\n" \
+        return "content_type: {content_type}\n" \
                "title: {title}\n" \
                "id: {id}\n" \
                "spacekey: {spacekey}\n" \
                "labels: {labels}\n" \
-               "parentid: {parentid}\n"\
-            .format(contenttype=self.content_type,
+               "parent_id: {parent_id}\n"\
+            .format(content_type=self.content_type,
                     title=self.title,
                     id=self.id,
                     spacekey=self.spacekey,
                     labels=self.labels,
-                    parentid=self.parent_id,
+                    parent_id=self.parent_id,
                     )
 
 
