@@ -12,6 +12,7 @@ blog.title = "Blogtitle"
 blog.labels = "label1,label2"
 blog.attachments = "/tmp/untitled.html"
 blog.spacekey = "SPACEKEY"
+blog.date = "2019-01-01"
 blog.publish()
 
 
@@ -24,3 +25,4 @@ page.update()
 
 # to change the default server address you may use the kwarg "url". This might be useful for testing
 confluence2 = Confluence("USERNAME", "PASSWORD", url="https://myserverurl.de")
+

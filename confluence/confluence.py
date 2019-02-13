@@ -283,7 +283,7 @@ class Confluence(AtlassianRestAPI):
             params['status'] = status
         return self.delete(url, params=params)
 
-    def create_page(self, space, title, body, parent_id=None, content_type='page'):
+    def create_page(self, space, title, body, parent_id=None, content_type='page', date=None):
         """
         Create page from scratch
         :param space: spacekey e.g. CFELCMI
@@ -291,6 +291,7 @@ class Confluence(AtlassianRestAPI):
         :param body: HTML content of the new page
         :param parent_id: parent id
         :param content_type: Potentially a blog post can be created here, but you may use create_blog_post
+        :param date, will be ignored by the server if content_type==page
         :return:
         """
         log.info('Creating {type} "{space}" -> "{title}"'.format(space=space, title=title, type=content_type))
@@ -302,19 +303,22 @@ class Confluence(AtlassianRestAPI):
             'body': {'storage': {
                 'value': body,
                 'representation': 'storage'}}}
+        if date:
+            data['history'] = {'createdDate': date.astimezone().isoformat(timespec='milliseconds')}
         if parent_id:
             data['ancestors'] = [{'type': content_type, 'id': parent_id}]
         return self.post(url, data=data)
 
-    def create_blogpost(self, space, title, body):
+    def create_blogpost(self, space, title, body, date=None):
         """
         Create a blog post from scratch
         :param space: spacekey e.g. CFELCMI
         :param title: Title of the new page
         :param body: HTML content of the new page
+        :param date: Allows for predating a blogpost
         :return:
         """
-        return self.create_page(space, title, body, content_type='blogpost')
+        return self.create_page(space, title, body, content_type='blogpost', date=date)
 
     @staticmethod
     def attachment_macro(filename, page_id):

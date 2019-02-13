@@ -4,10 +4,8 @@
 # Copyright (C) 2018 Alexander Franke, Jan Petermann
 
 
-from .confluence import Confluence
 import logging
-
-# from datetime import date
+import dateutil.parser
 log = logging.getLogger(__name__)
 
 
@@ -41,7 +39,7 @@ class _ConfluenceContent:
         :param kwargs:
         """
         self.confluence_instance = confluence_instance
-        self.__content_type = content_type
+        self._content_type = content_type
 
         if content_id:
             print("Getting content from server. Other arguments other than confluence and content_id ignored.")
@@ -56,14 +54,19 @@ class _ConfluenceContent:
             self.id = None
             self.link = None
             self.parent_id = parent_id
+            self._date = None
+
+    @property
+    def date(self):
+        return self._date
 
     @property
     def content_type(self):
-        return self.__content_type
+        return self._content_type
 
     @property
     def labels(self):
-        return self.__labels
+        return self._labels
 
     @labels.setter
     def labels(self, labels):
@@ -74,13 +77,13 @@ class _ConfluenceContent:
 
         try:
             iter(labels)
-            self.__labels = labels
+            self._labels = labels
         except TypeError:
             raise TypeError("Labels must be a comma separated string or iterable")
 
     @property
     def attachments(self):
-        return self.__attachments
+        return self._attachments
 
     @attachments.setter
     def attachments(self, attachments):
@@ -91,7 +94,7 @@ class _ConfluenceContent:
 
         try:
             iter(attachments)
-            self.__attachments = attachments
+            self._attachments = attachments
         except TypeError:
             raise TypeError("Attachments must be a comma separated string of file names or iterable")
 
@@ -157,7 +160,7 @@ class _ConfluenceContent:
                                                        self.title,
                                                        self.body,
                                                        self.parent_id,
-                                                       self.content_type)
+                                                       self.content_type, date=self.__getattribute__("date"))
         self.id = content["id"]
         self.link = content["_links"]["base"] + content["_links"]["tinyui"]
         self.publish_labels()
@@ -187,7 +190,8 @@ class _ConfluenceContent:
         """
 
         content = self.confluence_instance.get_content_by_id(content_id,
-                                                             expand="body.storage,metadata.labels,space,ancestors")
+                                                             expand="body.storage,"
+                                                                    "metadata.labels,space,ancestors,history")
         if content["type"] != self.content_type:
             raise Exception(content["id"] + " has content_type "
                             + content["type"] + " on server but " + self.content_type + " is required.")
@@ -198,10 +202,12 @@ class _ConfluenceContent:
         self.body = content["body"]["storage"]["value"]
         self.id = content["id"]
         self.attachments = []
+        self._date = content["history"]["createdDate"]
+
         try:
             self.parent_id = content["ancestors"][-1]["id"]
-        except TypeError:
-            pass
+        except (TypeError, IndexError):
+            self.parent_id = None
 
     def __repr__(self):
         return "content_type: {content_type}\n" \
@@ -210,18 +216,20 @@ class _ConfluenceContent:
                "spacekey: {spacekey}\n" \
                "labels: {labels}\n" \
                "parent_id: {parent_id}\n" \
+               "date: {date}" \
             .format(content_type=self.content_type,
                     title=self.title,
                     id=self.id,
                     spacekey=self.spacekey,
                     labels=self.labels,
                     parent_id=self.parent_id,
+                    date=self.date
                     )
 
 
 class Blogpost(_ConfluenceContent):
     def __init__(self, confluence_instance, spacekey=None, title=None, labels=None,
-                 body=None, attachments=None, append_attachment_macros=True, content_id=None, **kwargs):
+                 body=None, attachments=None, append_attachment_macros=True, content_id=None, date=None, **kwargs):
         """
         Creates a new blogpost which can be published to a confluence server with the
         function publish().
@@ -235,7 +243,7 @@ class Blogpost(_ConfluenceContent):
         :param append_attachment_macros: Boolean. Appends the attachment macro to content body for each attachment
         :param kwargs: E.g. url=NEWSERVERURL, url defaults to confluence.desy.de
         """
-
+        self._date = date
         super().__init__(confluence_instance,
                          spacekey,
                          title,
@@ -247,26 +255,29 @@ class Blogpost(_ConfluenceContent):
                          content_id=content_id,
                          **kwargs)
 
-    # @property
-    # def date(self):
-    #     return self.__date
-    #
-    # @date.setter
-    # def date(self, date_string):
-    #     """
-    #     Set the date for the new blogpost.
-    #     :param date_string: format: yyyy-mm-dd. Cannot be in the future.
-    #     :return:
-    #     """
-    #     new_date = date.fromisoformat(date_string)
-    #     if new_date > date.today():
-    #         raise Exception("A blog post cannot be submitted for dates in the future.
-    #         Please choose a different date.")
-    #     else:
-    #         self.__date = new_date
+    @property
+    def date(self):
+        return self._date
 
-    # TODO add the ability to set a date.
-    # publish, get blog id, set labels, set permissions and return link / blog post id
+    @date.setter
+    def date(self, date):
+        """
+         Set the date for the new blogpost.
+         :param date: DateTime, Date or proper time string (dateutils.parse). Should not be in the future.
+         :return:
+         """
+        if not date:
+            return
+        try:
+            new_date = dateutil.parser.parse(date.isoformat())
+        except AttributeError:
+            new_date = dateutil.parser.parse(date)
+
+        # if new_date > datetime.now():
+        #     raise Exception("A blog post cannot be submitted for dates in the future."
+        #                     "Please choose a different date.")
+
+        self._date = new_date
 
 
 class Page(_ConfluenceContent):
