@@ -57,10 +57,6 @@ class _ConfluenceContent:
             self.link = None
             self.parent_id = parent_id
 
-    def login(self, username, password):
-        self.confluence_instance = Confluence(username, password)
-
-
     @property
     def content_type(self):
         return self.__content_type
@@ -118,6 +114,10 @@ class _ConfluenceContent:
         Add labels to the content after creation (self.id is set)
         :return:
         """
+        if self.confluence_instance is None:
+            raise Exception("You have not created a confluence instance. Please use \n"
+                            "confluence = Confluence(USERNAME,PASSWORD)\nBlogpost(confluence) or Page(confluence)")
+
         try:
             for label in self.labels:
                 self.confluence_instance.set_content_label(self.id, label)
@@ -129,6 +129,10 @@ class _ConfluenceContent:
         Add attachments to the content after creation (self.id is set)
         :return:
         """
+        if self.confluence_instance is None:
+            raise Exception("You have not created a confluence instance. Please use \n"
+                            "confluence = Confluence(USERNAME,PASSWORD)\nBlogpost(confluence) or Page(confluence)")
+
         for attachment in self.attachments:
             if self.append_attachment_macros:
                 self.confluence_instance.attach_file_to_content_by_id_with_macro(attachment,
@@ -144,7 +148,7 @@ class _ConfluenceContent:
         :return: Prints the link and returns a json object with information of the new created content
         """
         if self.confluence_instance is None:
-            raise Exception("You have not created a confluence instance. Please use login() or use\n"
+            raise Exception("You have not created a confluence instance. Please use \n"
                             "confluence = Confluence(USERNAME,PASSWORD)\nBlogpost(confluence) or Page(confluence)")
         if self.content_type == 'page' and self.parent_id is None:
             self.parent_id = self.confluence_instance.get_space(self.spacekey)["homepage"]["id"]
@@ -216,7 +220,7 @@ class _ConfluenceContent:
 
 
 class Blogpost(_ConfluenceContent):
-    def __init__(self, confluence_instance=None, spacekey=None, title=None, labels=None,
+    def __init__(self, confluence_instance, spacekey=None, title=None, labels=None,
                  body=None, attachments=None, append_attachment_macros=True, content_id=None, **kwargs):
         """
         Creates a new blogpost which can be published to a confluence server with the
@@ -266,7 +270,7 @@ class Blogpost(_ConfluenceContent):
 
 
 class Page(_ConfluenceContent):
-    def __init__(self, confluence_instance=None, spacekey=None, title=None, labels=None,
+    def __init__(self, confluence_instance, spacekey=None, title=None, labels=None,
                  body=None, parent_id=None, attachments=None, append_attachment_macros=True, content_id=None, **kwargs):
         """
         Creates a new page which can be published to a confluence server with the

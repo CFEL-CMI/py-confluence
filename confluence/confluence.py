@@ -104,8 +104,12 @@ class Confluence(AtlassianRestAPI):
         try:
             return (self.get(url, params=params) or {}).get('results')[0]
         except IndexError as e:
-            log.error(e)
-            return None
+            try:
+                params['type'] = "blogpost"
+                return (self.get(url, params=params) or {}).get('results')[0]
+            except IndexError as e:
+                log.error(e)
+                return None
 
     def get_content_by_id(self, content_id, expand=None):
         """
