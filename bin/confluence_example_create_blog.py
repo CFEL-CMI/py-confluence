@@ -6,7 +6,7 @@
 from confluence import *
 
 # create a new blog post
-confluence = Confluence(username="USERNAME", password="PASSWORD")
+confluence = Confluence("USERNAME", "PASSWORD")
 blog = Blogpost(confluence)
 blog.title = "Blogtitle"
 blog.labels = "label1,label2"
@@ -22,12 +22,5 @@ print(page)
 page.labels = "newlabelforpage"
 page.update()
 
-# you may also create a confluence instance within a blog or page with login().
-blog2 = Blogpost()
-blog2.login("USERNAME", "PASSWORD")
-blog2.title = "another blog post"
-blog.spacekey = "SPACEKEY"
-blog.publish()
-
 # to change the default server address you may use the kwarg "url". This might be useful for testing
-confluence2 = Confluence(username="USERNAME", password="PASSWORD", url="https://myserverurl.de")
+confluence2 = Confluence("USERNAME", "PASSWORD", url="https://myserverurl.de")
