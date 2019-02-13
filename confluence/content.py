@@ -60,6 +60,7 @@ class _ConfluenceContent:
     def login(self, username, password):
         self.confluence_instance = Confluence(username, password)
 
+
     @property
     def content_type(self):
         return self.__content_type
@@ -142,8 +143,9 @@ class _ConfluenceContent:
         Send a blogpost or a page to the server. If page has no parent_id, set it to the space homepage
         :return: Prints the link and returns a json object with information of the new created content
         """
-        # TODO parse server error if content already exists
-
+        if self.confluence_instance is None:
+            raise Exception("You have not created a confluence instance. Please use login() or use\n"
+                            "confluence = Confluence(USERNAME,PASSWORD)\nBlogpost(confluence) or Page(confluence)")
         if self.content_type == 'page' and self.parent_id is None:
             self.parent_id = self.confluence_instance.get_space(self.spacekey)["homepage"]["id"]
 
@@ -214,7 +216,7 @@ class _ConfluenceContent:
 
 
 class Blogpost(_ConfluenceContent):
-    def __init__(self, confluence_instance, spacekey=None, title=None, labels=None,
+    def __init__(self, confluence_instance=None, spacekey=None, title=None, labels=None,
                  body=None, attachments=None, append_attachment_macros=True, content_id=None, **kwargs):
         """
         Creates a new blogpost which can be published to a confluence server with the
@@ -264,7 +266,7 @@ class Blogpost(_ConfluenceContent):
 
 
 class Page(_ConfluenceContent):
-    def __init__(self, confluence_instance, spacekey=None, title=None, labels=None,
+    def __init__(self, confluence_instance=None, spacekey=None, title=None, labels=None,
                  body=None, parent_id=None, attachments=None, append_attachment_macros=True, content_id=None, **kwargs):
         """
         Creates a new page which can be published to a confluence server with the
