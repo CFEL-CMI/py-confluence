@@ -10,7 +10,6 @@ import eml_parser
 import datetime
 from .bytesIO import BytesIO
 
-
 log = logging.getLogger(__name__)
 
 
@@ -144,9 +143,9 @@ class _ConfluenceContent:
         for attachment in self.attachments:
             if self.append_attachment_macros:
                 self.confluence_instance.attach_file_to_content_by_id_with_macro(attachment,
-                                                                                 self.id,
-                                                                                 self.content_type,
-                                                                                 self.title)
+                                                                                        self.id,
+                                                                                        self.content_type,
+                                                                                        self.title)
             else:
                 self.confluence_instance.attach_file_to_content_by_id(self, attachment, self.id)
 
@@ -166,25 +165,33 @@ class _ConfluenceContent:
                                                        self.body,
                                                        self.parent_id,
                                                        self.content_type, date=self.__getattribute__("date"))
+        link = content["_links"]["base"] + content["_links"]["tinyui"]
         self.id = content["id"]
-        self.link = content["_links"]["base"] + content["_links"]["tinyui"]
+
         self.publish_labels()
         self.publish_attachments()
-        print("Link to the new content: " + self.link)
+        self.get_content_from_server(content["id"])
+        self.link = link
+
+        print("Link to the new content: " + link)
 
     def update(self):
         """
         Publish updated content to server
         :return:
         """
+        # TODO does not work properly if created with attachments and afterwards updated
         content = self.confluence_instance.update_page(self.parent_id,
                                                        self.id,
                                                        self.title,
                                                        self.body,
                                                        self.content_type)
-        self.link = content["_links"]["base"] + content["_links"]["tinyui"]
+        link = content["_links"]["base"] + content["_links"]["tinyui"]
         self.publish_labels()
         self.publish_attachments()
+        self.get_content_from_server(content["id"])
+        self.link = link
+
         print("Link to the updated content: " + self.link)
 
     def get_content_from_server(self, content_id):
@@ -196,7 +203,8 @@ class _ConfluenceContent:
 
         content = self.confluence_instance.get_content_by_id(content_id,
                                                              expand="body.storage,"
-                                                                    "metadata.labels,space,ancestors,history")
+                                                                    "metadata.labels,space,"
+                                                                    "ancestors,history,children.attachment")
         if content["type"] != self.content_type:
             raise Exception(content["id"] + " has content_type "
                             + content["type"] + " on server but " + self.content_type + " is required.")
@@ -206,7 +214,6 @@ class _ConfluenceContent:
         self.labels = [label["name"] for label in content["metadata"]["labels"]["results"]]
         self.body = content["body"]["storage"]["value"]
         self.id = content["id"]
-        self.attachments = []
         self._date = content["history"]["createdDate"]
 
         try:
@@ -232,7 +239,7 @@ class _ConfluenceContent:
         # append eml file
         self._attachments.append(file_path)
         email_info = "from: " + header["from"] + "<br/> to: " + str(header["to"]) \
-                     + "<br/>date: "+str(header["date"]) + "<br/>"
+                     + "<br/>date: " + str(header["date"]) + "<br/>"
         print(body[0])
         self.body = email_info + str(body[0]["content"])
         self._labels.append("email")

@@ -14,8 +14,6 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 
-
-
 class Confluence(AtlassianRestAPI):
     content_types = {
         ".gif": "image/gif",
@@ -413,10 +411,11 @@ class Confluence(AtlassianRestAPI):
 
     def attach_file_to_content_by_id_with_macro(self, file_path, content_id, content_type, title, parent_id=None):
         attachment = self.attach_file_to_content_by_id(file_path, content_id)
-        old_content = self.get_content_by_id(content_id, "body.storage.content")
+        old_content = self.get_content_by_id(content_id, expand="body.storage.content")
         new_content = old_content["body"]["storage"]["value"] + self.attachment_macro(
             attachment["results"][0]["title"], content_id)
         self.update_page(parent_id, content_id, title, new_content, minor_edit=True, content_type=content_type)
+        return new_content
 
     def set_content_label(self, content_id, label):
         """
@@ -492,7 +491,8 @@ class Confluence(AtlassianRestAPI):
         log.debug('New Content: """{body}"""'.format(body=body))
 
         if confluence_content == body:
-            log.warning('Content of {content_id} is exactly the same'.format(content_id=content_id))
+            log.info('Content of {content_id} is exactly the same (except for attachment macro)'.format(
+                content_id=content_id))
             return True
         else:
             log.info('Content of {content_id} differs'.format(content_id=content_id))
