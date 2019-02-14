@@ -8,9 +8,12 @@ from requests import HTTPError
 from xml.etree import ElementTree
 import logging
 import os
+from .bytesIO import clean_string
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
+
+
 
 
 class Confluence(AtlassianRestAPI):
@@ -103,7 +106,7 @@ class Confluence(AtlassianRestAPI):
 
         try:
             return (self.get(url, params=params) or {}).get('results')[0]
-        except IndexError as e:
+        except IndexError:
             try:
                 params['type'] = "blogpost"
                 return (self.get(url, params=params) or {}).get('results')[0]
@@ -354,7 +357,7 @@ class Confluence(AtlassianRestAPI):
             params['start'] = start
         return (self.get(url, params=params) or {}).get('results')
 
-    def attach_file_to_content_by_id(self, filename, page_id=None, title=None, space=None, comment=None):
+    def attach_file_to_content_by_id(self, file, page_id=None, title=None, space=None, comment=None):
         """
         Attach (upload) a file to a page, if it exists it will update the
         automatically version the new file and keep the old one.
@@ -364,36 +367,46 @@ class Confluence(AtlassianRestAPI):
         :type  space: ``str``
         :param page_id: The page id to which we would like to upload the file
         :type  page_id: ``str``
-        :param filename: The file to upload
-        :type  filename: ``str``
+        :param file: The file to upload
         :param comment: A comment describing this upload/file
         :type  comment: ``str``
         """
         page_id = self.get_content_id(space=space, title=title) if page_id is None else page_id
+        close = False
+        if not hasattr(file, 'read'):
+            file = open(file, 'rb')
+            close = True
 
         if page_id is not None:
-            extension = os.path.splitext(filename)[-1]
-            content_type = self.content_types.get(extension, "application/binary")
-            comment = comment if comment else "Uploaded {filename}.".format(filename=filename)
-            data = {
-                'type': 'attachment',
-                "fileName": filename,
-                "contentType": content_type,
-                "comment": comment,
-                "minorEdit": "true"}
-            headers = {
-                'X-Atlassian-Token': 'nocheck',
-                'Accept': 'application/json'}
-            path = 'rest/api/content/{page_id}/child/attachment'.format(page_id=page_id)
-            # get base name of the file to get the attachment from confluence.
-            file_base_name = os.path.basename(filename)
-            # Check if there is already a file with the same name
-            attachments = self.get(path=path, headers=headers, params={'filename': file_base_name})
-            if attachments['size']:
-                path = path + '/' + attachments['results'][0]['id'] + '/data'
-            with open(filename, 'rb') as infile:
+            try:
+                file.seek(0)
+                extension = os.path.splitext(file.name)[-1]
+                content_type = self.content_types.get(extension, "application/binary")
+                comment = comment if comment else "Uploaded {filename}.".format(filename=file.name)
+                data = {
+                    'type': 'attachment',
+                    "fileName": file.name,
+                    "contentType": content_type,
+                    "comment": comment,
+                    "minorEdit": "true"}
+                headers = {
+                    'X-Atlassian-Token': 'nocheck',
+                    'Accept': 'application/json'}
+                path = 'rest/api/content/{page_id}/child/attachment'.format(page_id=page_id)
+                # get base name of the file to get the attachment from confluence.
+                file_base_name = os.path.basename(file.name)
+                file_base_name = clean_string(file_base_name)
+                # Check if there is already a file with the same name
+                attachments = self.get(path=path, headers=headers, params={'filename': file_base_name})
+                if attachments['size']:
+                    path = path + '/' + attachments['results'][0]['id'] + '/data'
                 return self.post(path=path, data=data, headers=headers,
-                                 files={'file': (filename, infile, content_type)})
+                                 files={'file': (file_base_name, file, content_type)})
+            finally:
+                if close:
+                    file.close()
+                else:
+                    file.seek(0)
         else:
             log.warning("No 'page_id' found, not uploading attachments")
             return None
@@ -470,7 +483,8 @@ class Confluence(AtlassianRestAPI):
         :param body: Body for compare it
         :return: True if the same
         """
-        confluence_content = (self.get_content_by_id(content_id, expand='body.storage').get('body') or {}).get('storage').get(
+        confluence_content = (self.get_content_by_id(content_id, expand='body.storage').get('body') or {}).get(
+            'storage').get(
             'value')
         confluence_content = confluence_content.replace('&oacute;', u'ó')
 

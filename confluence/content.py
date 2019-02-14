@@ -6,6 +6,11 @@
 
 import logging
 import dateutil.parser
+import eml_parser
+import datetime
+from .bytesIO import BytesIO
+
+
 log = logging.getLogger(__name__)
 
 
@@ -208,6 +213,36 @@ class _ConfluenceContent:
             self.parent_id = content["ancestors"][-1]["id"]
         except (TypeError, IndexError):
             self.parent_id = None
+
+    def read_eml(self, file_path):
+        """
+        Read an eml mail file and set label email
+        :param file_path:
+        :return:
+        """
+        with open(file_path, 'rb') as raw_email:
+            raw_email = raw_email.read()
+        eml = eml_parser.eml_parser.decode_email_b(raw_email, include_raw_body=True, include_attachment_data=True)
+        header = eml["header"]
+        body = eml["body"]
+        self.title = header["subject"]
+        self._date = header["date"]
+        self._attachments = [BytesIO(attachment["raw"], file_name=attachment["filename"])
+                             for attachment in eml["attachment"]]
+        # append eml file
+        self._attachments.append(file_path)
+        email_info = "from: " + header["from"] + "<br/> to: " + str(header["to"]) \
+                     + "<br/>date: "+str(header["date"]) + "<br/>"
+        print(body[0])
+        self.body = email_info + str(body[0]["content"])
+        self._labels.append("email")
+        return eml
+
+    @staticmethod
+    def json_serial(obj):
+        if isinstance(obj, datetime.datetime):
+            serial = obj.isoformat()
+            return serial
 
     def __repr__(self):
         return "content_type: {content_type}\n" \
