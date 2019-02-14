@@ -26,3 +26,8 @@ page.update()
 # to change the default server address you may use the kwarg "url". This might be useful for testing
 confluence2 = Confluence("USERNAME", "PASSWORD", url="https://myserverurl.de")
 
+# read from eml file
+blogfromeml = Blogpost(confluence)
+blogfromeml.read_eml("pathToEmlFile")
+blogfromeml.spacekey = "SPACEKEY"
+blogfromeml.publish()
