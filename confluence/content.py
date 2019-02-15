@@ -259,14 +259,16 @@ class _ConfluenceContent:
                "spacekey: {spacekey}\n" \
                "labels: {labels}\n" \
                "parent_id: {parent_id}\n" \
-               "date: {date}" \
+               "date: {date}\n" \
+               "attachments: {attachments}" \
             .format(content_type=self.content_type,
                     title=self.title,
                     id=self.id,
                     spacekey=self.spacekey,
                     labels=self.labels,
                     parent_id=self.parent_id,
-                    date=self.date
+                    date=self.date,
+                    attachments=self.attachments
                     )
 
 
