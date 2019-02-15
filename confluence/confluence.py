@@ -109,7 +109,6 @@ class Confluence(AtlassianRestAPI):
                 params['type'] = "blogpost"
                 return (self.get(url, params=params) or {}).get('results')[0]
             except IndexError as e:
-                log.error(e)
                 return None
 
     def get_content_by_id(self, content_id, expand=None):
@@ -411,9 +410,13 @@ class Confluence(AtlassianRestAPI):
 
     def attach_file_to_content_by_id_with_macro(self, file_path, content_id, content_type, title, parent_id=None):
         attachment = self.attach_file_to_content_by_id(file_path, content_id)
+        try:
+            attachment = attachment["results"][0]
+        except KeyError:
+            pass
         old_content = self.get_content_by_id(content_id, expand="body.storage.content")
         new_content = old_content["body"]["storage"]["value"] + self.attachment_macro(
-            attachment["results"][0]["title"], content_id)
+            attachment["title"], content_id)
         self.update_page(parent_id, content_id, title, new_content, minor_edit=True, content_type=content_type)
         return new_content
 
