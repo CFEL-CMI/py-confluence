@@ -152,7 +152,8 @@ class _ConfluenceContent:
     def publish(self):
         """
         Send a blogpost or a page to the server. If page has no parent_id, set it to the space homepage
-        :return: Prints the link and returns a json object with information of the new created content
+        :return: Prints the link to the new content. You may reuse you page/blogpost. Consider update() for
+        already created content. Will raise an exception if a content with this title already exists.
         """
         if self.confluence_instance is None:
             raise Exception("You have not created a confluence instance. Please use \n"
@@ -232,7 +233,7 @@ class _ConfluenceContent:
         eml = eml_parser.eml_parser.decode_email_b(raw_email, include_raw_body=True, include_attachment_data=True)
         header = eml["header"]
         body = eml["body"]
-        self.title = header["subject"]
+        self.title = header["subject"] + " (" + str(header["date"]) + ")"
         self._date = header["date"]
         self._attachments = [BytesIO(attachment["raw"], file_name=attachment["filename"])
                              for attachment in eml["attachment"]]
