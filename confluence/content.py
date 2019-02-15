@@ -58,11 +58,36 @@ class _ConfluenceContent:
             self.id = None
             self.link = None
             self.parent_id = parent_id
+            self._date_ = None
             self._date = None
+
+    @property
+    def _date(self):
+        return self._date_
+
+    @_date.setter
+    def _date(self, date):
+        if not date:
+            return
+        try:
+            new_date = dateutil.parser.parse(date.isoformat())
+        except AttributeError:
+            new_date = dateutil.parser.parse(date)
+
+        # if new_date > datetime.now():
+        #     raise Exception("A blog post cannot be submitted for dates in the future."
+        #                     "Please choose a different date.")
+        self._date_ = new_date
 
     @property
     def date(self):
         return self._date
+
+    @date.setter
+    def date(self, date):
+        if not self.content_type == "blogpost":
+            raise AttributeError("Cannot set date for {}", format(self.content_type))
+        self._date = date
 
     @property
     def content_type(self):
@@ -143,9 +168,9 @@ class _ConfluenceContent:
         for attachment in self.attachments:
             if self.append_attachment_macros:
                 self.confluence_instance.attach_file_to_content_by_id_with_macro(attachment,
-                                                                                        self.id,
-                                                                                        self.content_type,
-                                                                                        self.title)
+                                                                                 self.id,
+                                                                                 self.content_type,
+                                                                                 self.title)
             else:
                 self.confluence_instance.attach_file_to_content_by_id(self, attachment, self.id)
 
@@ -181,7 +206,9 @@ class _ConfluenceContent:
         Publish updated content to server
         :return:
         """
-        # TODO does not work properly if created with attachments and afterwards updated
+
+        if not self.id:
+            self.id = self.confluence_instance.get_content_id(self.spacekey,self.title)
         content = self.confluence_instance.update_page(self.parent_id,
                                                        self.id,
                                                        self.title,
@@ -299,30 +326,6 @@ class Blogpost(_ConfluenceContent):
                          content_type='blogpost',
                          content_id=content_id,
                          **kwargs)
-
-    @property
-    def date(self):
-        return self._date
-
-    @date.setter
-    def date(self, date):
-        """
-         Set the date for the new blogpost.
-         :param date: DateTime, Date or proper time string (dateutils.parse). Should not be in the future.
-         :return:
-         """
-        if not date:
-            return
-        try:
-            new_date = dateutil.parser.parse(date.isoformat())
-        except AttributeError:
-            new_date = dateutil.parser.parse(date)
-
-        # if new_date > datetime.now():
-        #     raise Exception("A blog post cannot be submitted for dates in the future."
-        #                     "Please choose a different date.")
-
-        self._date = new_date
 
 
 class Page(_ConfluenceContent):
