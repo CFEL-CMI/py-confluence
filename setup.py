@@ -43,5 +43,7 @@ setup(name="py-confluence",
       scripts             = ['bin/confluence_clone-space',
                              'bin/confluence_create-CMI-space'],
       install_requires    = ['requests>=2.21.0',
-                             'six>=1.12.0'],
+                             'six>=1.12.0',
+                             'python-dateutil>=2.7.5',
+                             'eml_parser>=1.11'],
       )

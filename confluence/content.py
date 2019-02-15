@@ -4,45 +4,73 @@
 # Copyright (C) 2018 Alexander Franke, Jan Petermann
 
 
-from .confluence import Confluence
 import logging
+import dateutil.parser
+import eml_parser
+import datetime
+from .bytesIO import BytesIO
 
-# from datetime import date
 log = logging.getLogger(__name__)
 
 
-class ConfluenceContent(Confluence):
+class _ConfluenceContent:
 
-    def __init__(self, username, password, spacekey=None, title=None, labels=None, body=None, attachments=None,
-                 append_attachment_macros=True, parent_id=None, date=None, content_type=None, **kwargs):
+    def __init__(self,
+                 confluence_instance=None,
+                 spacekey=None,
+                 title=None,
+                 labels=None,
+                 body=None,
+                 attachments=None,
+                 append_attachment_macros=True,
+                 parent_id=None,
+                 content_type=None,
+                 content_id=None,
+                 **kwargs):
         """
         Init function of ConfluenceContent.
         A content can be a page or a blogpost
-        :param username: The username e.g. afrank or jkuepper
-        :param password: The password for the user
-        :param spacekey: spacekey NOT space name for the content to be posted in
+        :param confluence_instance:
+        :param spacekey:
         :param title: The title of the new content
         :param labels: A list of labels to be added to the new content
         :param body: HTML string of the body for the new content
         :param attachments: List of file names to be attached to the new page/blogpost
+        :param append_attachment_macros:
+        :param parent_id:
+        :param content_type:
+        :param content_id:
+        :param kwargs:
         """
+        self.confluence_instance = confluence_instance
+        self._content_type = content_type
 
-        super().__init__(username, password, **kwargs)
-        self.spacekey = spacekey
-        self.title = title
-        self.labels = labels or []
-        self.body = body
-        self.attachments = attachments or []
-        self.append_attachment_macros = append_attachment_macros
-        self.id = None
-        self.link = None
-        self.parent_id = parent_id
-        self.date = date
-        self.content_type = content_type
+        if content_id:
+            print("Getting content from server. Other arguments other than confluence and content_id ignored.")
+            self.get_content_from_server(content_id)
+        else:
+            self.spacekey = spacekey
+            self.title = title
+            self.labels = labels or []
+            self.body = body
+            self.attachments = attachments or []
+            self.append_attachment_macros = append_attachment_macros
+            self.id = None
+            self.link = None
+            self.parent_id = parent_id
+            self._date = None
+
+    @property
+    def date(self):
+        return self._date
+
+    @property
+    def content_type(self):
+        return self._content_type
 
     @property
     def labels(self):
-        return self.__labels
+        return self._labels
 
     @labels.setter
     def labels(self, labels):
@@ -53,13 +81,13 @@ class ConfluenceContent(Confluence):
 
         try:
             iter(labels)
-            self.__labels = labels
+            self._labels = labels
         except TypeError:
             raise TypeError("Labels must be a comma separated string or iterable")
 
     @property
     def attachments(self):
-        return self.__attachments
+        return self._attachments
 
     @attachments.setter
     def attachments(self, attachments):
@@ -70,7 +98,7 @@ class ConfluenceContent(Confluence):
 
         try:
             iter(attachments)
-            self.__attachments = attachments
+            self._attachments = attachments
         except TypeError:
             raise TypeError("Attachments must be a comma separated string of file names or iterable")
 
@@ -93,9 +121,13 @@ class ConfluenceContent(Confluence):
         Add labels to the content after creation (self.id is set)
         :return:
         """
+        if self.confluence_instance is None:
+            raise Exception("You have not created a confluence instance. Please use \n"
+                            "confluence = Confluence(USERNAME,PASSWORD)\nBlogpost(confluence) or Page(confluence)")
+
         try:
             for label in self.labels:
-                Confluence.set_page_label(self, self.id, label)
+                self.confluence_instance.set_content_label(self.id, label)
         except (TypeError, AttributeError):
             pass
 
@@ -104,65 +136,120 @@ class ConfluenceContent(Confluence):
         Add attachments to the content after creation (self.id is set)
         :return:
         """
+        if self.confluence_instance is None:
+            raise Exception("You have not created a confluence instance. Please use \n"
+                            "confluence = Confluence(USERNAME,PASSWORD)\nBlogpost(confluence) or Page(confluence)")
+
         for attachment in self.attachments:
             if self.append_attachment_macros:
-                Confluence.attach_file_to_content_by_id_with_macro(self, attachment, self.id,
-                                                                   self.content_type, self.title)
+                self.confluence_instance.attach_file_to_content_by_id_with_macro(attachment,
+                                                                                        self.id,
+                                                                                        self.content_type,
+                                                                                        self.title)
             else:
-                Confluence.attach_file_to_content_by_id(self, attachment, self.id)
+                self.confluence_instance.attach_file_to_content_by_id(self, attachment, self.id)
 
     def publish(self):
         """
         Send a blogpost or a page to the server. If page has no parent_id, set it to the space homepage
         :return: Prints the link and returns a json object with information of the new created content
         """
-        # TODO parse server error if content already exists
-
+        if self.confluence_instance is None:
+            raise Exception("You have not created a confluence instance. Please use \n"
+                            "confluence = Confluence(USERNAME,PASSWORD)\nBlogpost(confluence) or Page(confluence)")
         if self.content_type == 'page' and self.parent_id is None:
-            self.parent_id = Confluence.get_space(self, self.spacekey, expand="homepage")["homepage"]["id"]
+            self.parent_id = self.confluence_instance.get_space(self.spacekey)["homepage"]["id"]
 
-        content = Confluence.create_page(self, self.spacekey, self.title, self.body,
-                                         self.parent_id, self.content_type)
+        content = self.confluence_instance.create_page(self.spacekey,
+                                                       self.title,
+                                                       self.body,
+                                                       self.parent_id,
+                                                       self.content_type, date=self.__getattribute__("date"))
+        link = content["_links"]["base"] + content["_links"]["tinyui"]
         self.id = content["id"]
-        self.link = content["_links"]["base"] + content["_links"]["tinyui"]
+
         self.publish_labels()
         self.publish_attachments()
-        print("Link to the new content: " + self.link)
+        self.get_content_from_server(content["id"])
+        self.link = link
+
+        print("Link to the new content: " + link)
 
     def update(self):
         """
-        Update content
+        Publish updated content to server
         :return:
         """
-        content = Confluence.update_page(self, self.parent_id, self.id, self.title, self.id, self.content_type)
-        self.link = content["_links"]["base"] + content["_links"]["tinyui"]
+        # TODO does not work properly if created with attachments and afterwards updated
+        content = self.confluence_instance.update_page(self.parent_id,
+                                                       self.id,
+                                                       self.title,
+                                                       self.body,
+                                                       self.content_type)
+        link = content["_links"]["base"] + content["_links"]["tinyui"]
         self.publish_labels()
         self.publish_attachments()
+        self.get_content_from_server(content["id"])
+        self.link = link
+
         print("Link to the updated content: " + self.link)
 
-    @staticmethod
-    def get_content_from_server(username, password, content_id, **kwargs):
-        confluence = Confluence(username, password, **kwargs)
-        content = confluence.get_page_by_id(content_id, expand="body.storage,metadata.labels,space,ancestors")
-        if content["type"] == 'blogpost':
-            newcontent = Blogpost(username, password)
-        elif content["type"] == 'page':
-            newcontent = Page(username, password)
-        else:
-            raise Exception("Content type not valid")
+    def get_content_from_server(self, content_id):
+        """
+        Get content from server and overwrite current instance attributes
+        :param content_id:
+        :return:
+        """
 
-        newcontent.title = content["title"]
-        newcontent.spacekey = content["space"]["key"]
-        newcontent.labels = [label["name"] for label in content["metadata"]["labels"]["results"]]
-        newcontent.body = content["body"]["storage"]["value"]
-        newcontent.id = content["id"]
+        content = self.confluence_instance.get_content_by_id(content_id,
+                                                             expand="body.storage,"
+                                                                    "metadata.labels,space,"
+                                                                    "ancestors,history,children.attachment")
+        if content["type"] != self.content_type:
+            raise Exception(content["id"] + " has content_type "
+                            + content["type"] + " on server but " + self.content_type + " is required.")
+
+        self.title = content["title"]
+        self.spacekey = content["space"]["key"]
+        self.labels = [label["name"] for label in content["metadata"]["labels"]["results"]]
+        self.body = content["body"]["storage"]["value"]
+        self.id = content["id"]
+        self._date = content["history"]["createdDate"]
+
         try:
-            newcontent.parent_id = content["ancestors"][-1]["id"]
-        except TypeError:
-            pass
-        newcontent.content_type = content["type"]
+            self.parent_id = content["ancestors"][-1]["id"]
+        except (TypeError, IndexError):
+            self.parent_id = None
 
-        return newcontent
+    def read_eml(self, file_path):
+        """
+        Read an eml mail file and set label email
+        :param file_path:
+        :return:
+        """
+        with open(file_path, 'rb') as raw_email:
+            raw_email = raw_email.read()
+        eml = eml_parser.eml_parser.decode_email_b(raw_email, include_raw_body=True, include_attachment_data=True)
+        header = eml["header"]
+        body = eml["body"]
+        self.title = header["subject"]
+        self._date = header["date"]
+        self._attachments = [BytesIO(attachment["raw"], file_name=attachment["filename"])
+                             for attachment in eml["attachment"]]
+        # append eml file
+        self._attachments.append(file_path)
+        email_info = "from: " + header["from"] + "<br/> to: " + str(header["to"]) \
+                     + "<br/>date: " + str(header["date"]) + "<br/>"
+        print(body[0])
+        self.body = email_info + str(body[0]["content"])
+        self._labels.append("email")
+        return eml
+
+    @staticmethod
+    def json_serial(obj):
+        if isinstance(obj, datetime.datetime):
+            serial = obj.isoformat()
+            return serial
 
     def __repr__(self):
         return "content_type: {content_type}\n" \
@@ -170,19 +257,21 @@ class ConfluenceContent(Confluence):
                "id: {id}\n" \
                "spacekey: {spacekey}\n" \
                "labels: {labels}\n" \
-               "parent_id: {parent_id}\n"\
+               "parent_id: {parent_id}\n" \
+               "date: {date}" \
             .format(content_type=self.content_type,
                     title=self.title,
                     id=self.id,
                     spacekey=self.spacekey,
                     labels=self.labels,
                     parent_id=self.parent_id,
+                    date=self.date
                     )
 
 
-class Blogpost(ConfluenceContent):
-    def __init__(self, username, password, spacekey=None, title=None, labels=None,
-                 body=None, attachments=None, append_attachment_macros=True, **kwargs):
+class Blogpost(_ConfluenceContent):
+    def __init__(self, confluence_instance, spacekey=None, title=None, labels=None,
+                 body=None, attachments=None, append_attachment_macros=True, content_id=None, date=None, **kwargs):
         """
         Creates a new blogpost which can be published to a confluence server with the
         function publish().
@@ -196,39 +285,46 @@ class Blogpost(ConfluenceContent):
         :param append_attachment_macros: Boolean. Appends the attachment macro to content body for each attachment
         :param kwargs: E.g. url=NEWSERVERURL, url defaults to confluence.desy.de
         """
-        super().__init__(username, password, spacekey, title,
+        self._date = date
+        super().__init__(confluence_instance,
+                         spacekey,
+                         title,
                          labels=labels,
                          body=body,
                          attachments=attachments,
                          append_attachment_macros=append_attachment_macros,
                          content_type='blogpost',
+                         content_id=content_id,
                          **kwargs)
 
-    # @property
-    # def date(self):
-    #     return self.__date
-    #
-    # @date.setter
-    # def date(self, date_string):
-    #     """
-    #     Set the date for the new blogpost.
-    #     :param date_string: format: yyyy-mm-dd. Cannot be in the future.
-    #     :return:
-    #     """
-    #     new_date = date.fromisoformat(date_string)
-    #     if new_date > date.today():
-    #         raise Exception("A blog post cannot be submitted for dates in the future.
-    #         Please choose a different date.")
-    #     else:
-    #         self.__date = new_date
+    @property
+    def date(self):
+        return self._date
 
-    # TODO add the ability to set a date.
-    # publish, get blog id, set labels, set permissions and return link / blog post id
+    @date.setter
+    def date(self, date):
+        """
+         Set the date for the new blogpost.
+         :param date: DateTime, Date or proper time string (dateutils.parse). Should not be in the future.
+         :return:
+         """
+        if not date:
+            return
+        try:
+            new_date = dateutil.parser.parse(date.isoformat())
+        except AttributeError:
+            new_date = dateutil.parser.parse(date)
+
+        # if new_date > datetime.now():
+        #     raise Exception("A blog post cannot be submitted for dates in the future."
+        #                     "Please choose a different date.")
+
+        self._date = new_date
 
 
-class Page(ConfluenceContent):
-    def __init__(self, username, password, spacekey=None, title=None, labels=None,
-                 body=None, parent_id=None, attachments=None, append_attachment_macros=True, **kwargs):
+class Page(_ConfluenceContent):
+    def __init__(self, confluence_instance, spacekey=None, title=None, labels=None,
+                 body=None, parent_id=None, attachments=None, append_attachment_macros=True, content_id=None, **kwargs):
         """
         Creates a new page which can be published to a confluence server with the
         function publish().
@@ -242,11 +338,15 @@ class Page(ConfluenceContent):
         :param attachments: An iterable or comma separated string of file paths to attach
         :param kwargs: E.g. url=NEWSERVERURL, url defaults to confluence.desy.de
         """
-        super().__init__(username, password, spacekey, title,
+        self.parent_id = parent_id
+
+        super().__init__(confluence_instance,
+                         spacekey,
+                         title,
                          labels=labels,
                          body=body,
                          attachments=attachments,
                          append_attachment_macros=append_attachment_macros,
                          content_type='page',
+                         content_id=content_id,
                          **kwargs)
-        self.parent_id = parent_id

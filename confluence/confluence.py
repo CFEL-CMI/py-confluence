@@ -8,6 +8,7 @@ from requests import HTTPError
 from xml.etree import ElementTree
 import logging
 import os
+from .bytesIO import clean_string
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -26,7 +27,7 @@ class Confluence(AtlassianRestAPI):
 
     def page_exists(self, space, title):
         try:
-            if self.get_page_by_title(space, title):
+            if self.get_content_by_title(space, title):
                 log.info('Page "{title}" already exists in space "{space}"'.format(space=space, title=title))
                 return True
             else:
@@ -36,7 +37,7 @@ class Confluence(AtlassianRestAPI):
             log.info('Page "{title}" does not exist in space "{space}"'.format(space=space, title=title))
             return False
 
-    def get_page_child_by_type(self, page_id, content_type='page', start=None, limit=None):
+    def _get_page_child_by_type(self, page_id, content_type='page', start=None, limit=None):
         """
         Provide content by type (page, blog, comment)
         :param page_id: A string containing the id of the type content container.
@@ -59,35 +60,26 @@ class Confluence(AtlassianRestAPI):
             log.error(e)
             return None
 
-    def get_page_id(self, space, title):
+    def get_content_id(self, space, title):
         """
         Provide content id from search result by title and space
         :param space: SPACE key
         :param title: title
-        :return:
+        :return: content_id
         """
-        return (self.get_page_by_title(space, title) or {}).get('id')
+        return (self.get_content_by_title(space, title) or {}).get('id')
 
-    def get_blog_post_id(self, space, title):
-        """
-        Provide content id from search result by title and space
-        :param space: SPACE key
-        :param title: title
-        :return:
-        """
-        return self.get_page_id(space, title)
-
-    def get_page_space(self, page_id):
+    def get_content_space(self, content_id):
         """
         Provide space key from content id
-        :param page_id: content ID
-        :return:
+        :param content_id: content ID
+        :return: space key
         """
-        return ((self.get_page_by_id(page_id, expand='space') or {}).get('space') or {}).get('key')
+        return ((self.get_content_by_id(content_id, expand='space') or {}).get('space') or {}).get('key')
 
-    def get_page_by_title(self, space, title, start=None, limit=None):
+    def get_content_by_title(self, space, title, start=None, limit=None):
         """
-        Returns the list of labels on a piece of Content.
+
         :param space: Space key
         :param title: Title of the page
         :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
@@ -112,30 +104,25 @@ class Confluence(AtlassianRestAPI):
 
         try:
             return (self.get(url, params=params) or {}).get('results')[0]
-        except IndexError as e:
-            log.error(e)
-            return None
+        except IndexError:
+            try:
+                params['type'] = "blogpost"
+                return (self.get(url, params=params) or {}).get('results')[0]
+            except IndexError as e:
+                log.error(e)
+                return None
 
-    def get_page_by_id(self, page_id, expand=None):
+    def get_content_by_id(self, content_id, expand=None):
         """
-        Get page by ID
-        :param page_id: Content ID
+        Get page or blogposts by ID
+        :param content_id: Content ID
         :param expand: OPTIONAL: expand e.g. history
         :return:
         """
-        url = 'rest/api/content/{page_id}?expand={expand}'.format(page_id=page_id, expand=expand)
+        url = 'rest/api/content/{content_id}?expand={expand}'.format(content_id=content_id, expand=expand)
         return self.get(url)
 
-    def get_blog_post_by_id(self, blog_post_id, expand=None):
-        """
-        Get blog post by ID
-        :param blog_post_id: Content ID
-        :param expand: OPTIONAL: expand e.g. history
-        :return:
-        """
-        return self.get_page_by_id(blog_post_id, expand)
-
-    def get_page_labels(self, page_id, prefix=None, start=None, limit=None):
+    def get_content_labels(self, page_id, prefix=None, start=None, limit=None):
         """
         Returns the list of labels on a piece of Content.
         :param page_id: A string containing the id of the labels content container.
@@ -157,21 +144,7 @@ class Confluence(AtlassianRestAPI):
             params['limit'] = int(limit)
         return self.get(url, params=params)
 
-    def get_blog_post_labels(self, blog_post_id, prefix=None, start=None, limit=None):
-        """
-         Returns the list of labels on a piece of Content.
-        :param blog_post_id: A string containing the id of the labels content container.
-        :param prefix: OPTIONAL: The prefixes to filter the labels with {@see Label.Prefix}.
-                                Default: None.
-        :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
-        :param limit: OPTIONAL: The limit of the number of labels to return, this may be restricted by
-                            fixed system limits. Default: 200.
-        :return: The JSON data returned from the content/{id}/label endpoint, or the results of the
-                 callback. Will raise requests.HTTPError on bad input, potentially.
-        """
-        return self.get_page_labels(blog_post_id, prefix, start, limit)
-
-    def get_draft_page_by_id(self, page_id, status='draft'):
+    def get_draft_content_by_id(self, page_id, status='draft'):
         """
         Provide content by id with status = draft
         :param page_id:
@@ -181,9 +154,9 @@ class Confluence(AtlassianRestAPI):
         url = 'rest/api/content/{page_id}?status={status}'.format(page_id=page_id, status=status)
         return self.get(url)
 
-    def get_all_pages_by_label(self, label, start=0, limit=50):
+    def get_all_contents_by_label(self, label, start=0, limit=50):
         """
-        Get all page by label
+        Get all page or blogposts  by label
         :param label:
         :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
         :param limit: OPTIONAL: The limit of the number of pages to return, this may be restricted by
@@ -201,29 +174,9 @@ class Confluence(AtlassianRestAPI):
             params['limit'] = limit
         return (self.get(url, params=params) or {}).get('results')
 
-    def get_all_blog_posts_by_label(self, label, start=0, limit=50):
+    def get_all_contents_from_space(self, space, start=0, limit=500, status=None):
         """
-        Get all blog posts by label
-        :param label:
-        :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
-        :param limit: OPTIONAL: The limit of the number of pages to return, this may be restricted by
-                      fixed system limits. Default: 50
-        :return:
-        """
-        url = 'rest/api/content/search'
-        params = {}
-        if label:
-            params['cql'] = 'type={type}%20AND%20label={label}'.format(type='blogpost',
-                                                                       label=label)
-        if start:
-            params['start'] = start
-        if limit:
-            params['limit'] = limit
-        return (self.get(url, params=params) or {}).get('results')
-
-    def get_all_pages_from_space(self, space, start=0, limit=500, status=None):
-        """
-        Get all pages from space
+        Get all pages or blogposts from space
         :param space:
         :param start: OPTIONAL: The start point of the collection to return. Default: None (0).
         :param limit: OPTIONAL: The limit of the number of pages to return, this may be restricted by
@@ -243,7 +196,7 @@ class Confluence(AtlassianRestAPI):
             params['status'] = status
         return (self.get(url, params=params) or {}).get('results')
 
-    def get_all_pages_from_space_trash(self, space, start=0, limit=500, status='trashed'):
+    def get_all_contents_from_space_trash(self, space, start=0, limit=500, status='trashed'):
         """
         Get list of pages from trash
         :param space:
@@ -253,9 +206,9 @@ class Confluence(AtlassianRestAPI):
         :param status:
         :return:
         """
-        return self.get_all_pages_from_space(space, start, limit, status)
+        return self.get_all_contents_from_space(space, start, limit, status)
 
-    def get_all_draft_pages_from_space(self, space, start=0, limit=500, status='draft'):
+    def get_all_draft_contents_from_space(self, space, start=0, limit=500, status='draft'):
         """
         Get list of draft pages from space
         Use case is cleanup old drafts from Confluence
@@ -266,11 +219,11 @@ class Confluence(AtlassianRestAPI):
         :param status:
         :return:
         """
-        return self.get_all_pages_from_space(space, start, limit, status)
+        return self.get_all_contents_from_space(space, start, limit, status)
 
-    def get_all_draft_pages_from_space_through_cql(self, space, start=0, limit=500, status='draft'):
+    def get_all_draft_contents_from_space_through_cql(self, space, start=0, limit=500, status='draft'):
         """
-        Search list of draft pages by space key
+        Search list of draft content by space key
         Use case is cleanup old drafts from Confluence
         :param space: Space Key
         :param status: Can be changed
@@ -288,7 +241,7 @@ class Confluence(AtlassianRestAPI):
             params['start'] = start
         return (self.get(url, params=params) or {}).get('results')
 
-    def get_all_restictions_for_content(self, content_id):
+    def get_all_restrictions_for_content(self, content_id):
         """
         Returns info about all restrictions by operation.
         :param content_id:
@@ -297,49 +250,41 @@ class Confluence(AtlassianRestAPI):
         url = 'rest/api/content/{}/restriction/byOperation'.format(content_id)
         return self.get(url)
 
-    def remove_page_from_trash(self, page_id):
+    def remove_content_from_trash(self, content_id):
         """
         This method removes a page from trash
-        :param page_id:
+        :param content_id:
         :return:
         """
-        return self.remove_page(page_id=page_id, status='trashed')
+        return self.remove_content(content_id=content_id, status='trashed')
 
-    def remove_page_as_draft(self, page_id):
+    def remove_content_as_draft(self, content_id):
         """
-        This method removes a page from trash if it is a draft
-        :param page_id:
+        This method removes a content from trash if it is a draft
+        :param content_id:
         :return:
         """
-        return self.remove_page(page_id=page_id, status='draft')
+        return self.remove_content(content_id=content_id, status='draft')
 
-    def remove_page(self, page_id, status=None, recursive=False):
+    def remove_content(self, content_id, status=None, recursive=False):
         """
         This method removes a page, if it has recursive flag, method removes including child pages
-        :param page_id:
+        :param content_id:
         :param status: OPTIONAL: type of page
         :param recursive: OPTIONAL: if True - will recursively delete all children pages too
         :return:
         """
-        url = 'rest/api/content/{page_id}'.format(page_id=page_id)
+        url = 'rest/api/content/{content_id}'.format(content_id=content_id)
         if recursive:
-            children_pages = self.get_page_child_by_type(page_id)
+            children_pages = self._get_page_child_by_type(content_id)
             for children_page in children_pages:
-                self.remove_page(children_page.get('id'), status, recursive)
+                self.remove_content(children_page.get('id'), status, recursive)
         params = {}
         if status:
             params['status'] = status
         return self.delete(url, params=params)
 
-    def remove_blog_post(self, blog_post_id):
-        """
-        This method removes a blog_post
-        :param blog_post_id: Id of the blogpost to be removed
-        :return:
-        """
-        return self.remove_page(blog_post_id, None, False)
-
-    def create_page(self, space, title, body, parent_id=None, content_type='page'):
+    def create_page(self, space, title, body, parent_id=None, content_type='page', date=None):
         """
         Create page from scratch
         :param space: spacekey e.g. CFELCMI
@@ -347,6 +292,7 @@ class Confluence(AtlassianRestAPI):
         :param body: HTML content of the new page
         :param parent_id: parent id
         :param content_type: Potentially a blog post can be created here, but you may use create_blog_post
+        :param date, will be ignored by the server if content_type==page
         :return:
         """
         log.info('Creating {type} "{space}" -> "{title}"'.format(space=space, title=title, type=content_type))
@@ -358,19 +304,22 @@ class Confluence(AtlassianRestAPI):
             'body': {'storage': {
                 'value': body,
                 'representation': 'storage'}}}
+        if date:
+            data['history'] = {'createdDate': date.astimezone().isoformat(timespec='milliseconds')}
         if parent_id:
             data['ancestors'] = [{'type': content_type, 'id': parent_id}]
         return self.post(url, data=data)
 
-    def create_blog_post(self, space, title, body):
+    def create_blogpost(self, space, title, body, date=None):
         """
         Create a blog post from scratch
         :param space: spacekey e.g. CFELCMI
         :param title: Title of the new page
         :param body: HTML content of the new page
+        :param date: Allows for predating a blogpost
         :return:
         """
-        return self.create_page(space, title, body, content_type='blogpost')
+        return self.create_page(space, title, body, content_type='blogpost', date=date)
 
     @staticmethod
     def attachment_macro(filename, page_id):
@@ -406,7 +355,7 @@ class Confluence(AtlassianRestAPI):
             params['start'] = start
         return (self.get(url, params=params) or {}).get('results')
 
-    def attach_file_to_content_by_id(self, filename, page_id=None, title=None, space=None, comment=None):
+    def attach_file_to_content_by_id(self, file, page_id=None, title=None, space=None, comment=None):
         """
         Attach (upload) a file to a page, if it exists it will update the
         automatically version the new file and keep the old one.
@@ -416,67 +365,69 @@ class Confluence(AtlassianRestAPI):
         :type  space: ``str``
         :param page_id: The page id to which we would like to upload the file
         :type  page_id: ``str``
-        :param filename: The file to upload
-        :type  filename: ``str``
+        :param file: The file to upload
         :param comment: A comment describing this upload/file
         :type  comment: ``str``
         """
-        page_id = self.get_page_id(space=space, title=title) if page_id is None else page_id
+        page_id = self.get_content_id(space=space, title=title) if page_id is None else page_id
+        close = False
+        if not hasattr(file, 'read'):
+            file = open(file, 'rb')
+            close = True
 
         if page_id is not None:
-            extension = os.path.splitext(filename)[-1]
-            content_type = self.content_types.get(extension, "application/binary")
-            comment = comment if comment else "Uploaded {filename}.".format(filename=filename)
-            data = {
-                'type': 'attachment',
-                "fileName": filename,
-                "contentType": content_type,
-                "comment": comment,
-                "minorEdit": "true"}
-            headers = {
-                'X-Atlassian-Token': 'nocheck',
-                'Accept': 'application/json'}
-            path = 'rest/api/content/{page_id}/child/attachment'.format(page_id=page_id)
-            # get base name of the file to get the attachment from confluence.
-            file_base_name = os.path.basename(filename)
-            # Check if there is already a file with the same name
-            attachments = self.get(path=path, headers=headers, params={'filename': file_base_name})
-            if attachments['size']:
-                path = path + '/' + attachments['results'][0]['id'] + '/data'
-            with open(filename, 'rb') as infile:
+            try:
+                file.seek(0)
+                extension = os.path.splitext(file.name)[-1]
+                content_type = self.content_types.get(extension, "application/binary")
+                comment = comment if comment else "Uploaded {filename}.".format(filename=file.name)
+                data = {
+                    'type': 'attachment',
+                    "fileName": file.name,
+                    "contentType": content_type,
+                    "comment": comment,
+                    "minorEdit": "true"}
+                headers = {
+                    'X-Atlassian-Token': 'nocheck',
+                    'Accept': 'application/json'}
+                path = 'rest/api/content/{page_id}/child/attachment'.format(page_id=page_id)
+                # get base name of the file to get the attachment from confluence.
+                file_base_name = os.path.basename(file.name)
+                file_base_name = clean_string(file_base_name)
+                # Check if there is already a file with the same name
+                attachments = self.get(path=path, headers=headers, params={'filename': file_base_name})
+                if attachments['size']:
+                    path = path + '/' + attachments['results'][0]['id'] + '/data'
                 return self.post(path=path, data=data, headers=headers,
-                                 files={'file': (filename, infile, content_type)})
+                                 files={'file': (file_base_name, file, content_type)})
+            finally:
+                if close:
+                    file.close()
+                else:
+                    file.seek(0)
         else:
             log.warning("No 'page_id' found, not uploading attachments")
             return None
 
     def attach_file_to_content_by_id_with_macro(self, file_path, content_id, content_type, title, parent_id=None):
         attachment = self.attach_file_to_content_by_id(file_path, content_id)
-        old_content = self.get_page_by_id(content_id, "body.storage.content")
+        old_content = self.get_content_by_id(content_id, expand="body.storage.content")
         new_content = old_content["body"]["storage"]["value"] + self.attachment_macro(
             attachment["results"][0]["title"], content_id)
-        returnstr = self.update_page(parent_id, content_id, title, new_content, minor_edit=True, content_type=content_type)
+        self.update_page(parent_id, content_id, title, new_content, minor_edit=True, content_type=content_type)
+        return new_content
 
-    def set_page_label(self, page_id, label):
+    def set_content_label(self, content_id, label):
         """
         Set a label on the page
-        :param page_id: content_id format
+        :param content_id: content_id format
         :param label: label to add
         :return:
         """
-        url = 'rest/api/content/{page_id}/label'.format(page_id=page_id)
+        url = 'rest/api/content/{content_id}/label'.format(content_id=content_id)
         data = {'prefix': 'global',
                 'name': label}
         return self.post(path=url, data=data)
-
-    def set_blog_post_label(self, page_id, label):
-        """
-        Set a label on a blog post
-        :param page_id: content_id format
-        :param label: label to add
-        :return:
-        """
-        return self.set_page_label(page_id, label)
 
     def history(self, page_id):
         url = 'rest/api/content/{0}/history'.format(page_id)
@@ -516,7 +467,7 @@ class Confluence(AtlassianRestAPI):
         :return:
         """
         unknown_attachment_identifier = 'plugins/servlet/confluence/placeholder/unknown-attachment'
-        result = self.get_page_by_id(page_id, expand='body.view')
+        result = self.get_content_by_id(page_id, expand='body.view')
         if len(result) == 0:
             return ""
         body = (((result.get('body') or {}).get('view') or {}).get('value') or {})
@@ -524,14 +475,15 @@ class Confluence(AtlassianRestAPI):
             return result.get('_links').get('base') + result.get('_links').get('tinyui')
         return ""
 
-    def is_page_content_is_already_updated(self, page_id, body):
+    def is_content_is_already_updated(self, content_id, body):
         """
         Compare content and check is already updated or not
-        :param page_id: Content ID for retrieve storage value
+        :param content_id: Content ID for retrieve storage value
         :param body: Body for compare it
         :return: True if the same
         """
-        confluence_content = (self.get_page_by_id(page_id, expand='body.storage').get('body') or {}).get('storage').get(
+        confluence_content = (self.get_content_by_id(content_id, expand='body.storage').get('body') or {}).get(
+            'storage').get(
             'value')
         confluence_content = confluence_content.replace('&oacute;', u'ó')
 
@@ -539,18 +491,19 @@ class Confluence(AtlassianRestAPI):
         log.debug('New Content: """{body}"""'.format(body=body))
 
         if confluence_content == body:
-            log.warning('Content of {page_id} is exactly the same'.format(page_id=page_id))
+            log.info('Content of {content_id} is exactly the same (except for attachment macro)'.format(
+                content_id=content_id))
             return True
         else:
-            log.info('Content of {page_id} differs'.format(page_id=page_id))
+            log.info('Content of {content_id} differs'.format(content_id=content_id))
             return False
 
-    def update_page(self, parent_id, page_id, title, body, content_type='page',
+    def update_page(self, parent_id, content_id, title, body, content_type='page',
                     minor_edit=False):
         """
         Update page if already exist
         :param parent_id:
-        :param page_id:
+        :param content_id:
         :param title:
         :param body:
         :param content_type: page of blogpost. Defaults to page
@@ -560,13 +513,13 @@ class Confluence(AtlassianRestAPI):
         """
         log.info('Updating {type} "{title}"'.format(title=title, type=content_type))
 
-        if self.is_page_content_is_already_updated(page_id, body):
-            return self.get_page_by_id(page_id)
+        if self.is_content_is_already_updated(content_id, body):
+            return self.get_content_by_id(content_id)
         else:
-            version = self.history(page_id)['lastUpdated']['number'] + 1
+            version = self.history(content_id)['lastUpdated']['number'] + 1
 
             data = {
-                'id': page_id,
+                'id': content_id,
                 'type': content_type,
                 'title': title,
                 'body': {'storage': {
@@ -579,19 +532,19 @@ class Confluence(AtlassianRestAPI):
             if parent_id:
                 data['ancestors'] = [{'type': 'page', 'id': parent_id}]
 
-            return self.put('rest/api/content/{0}'.format(page_id), data=data)
+            return self.put('rest/api/content/{0}'.format(content_id), data=data)
 
-    def update_blog_post(self, blog_post_id, title, body, minor_edit=False):
+    def update_blogpost(self, blogpost_id, title, body, minor_edit=False):
         """
-       Update a blog post if already exist
-        :param blog_post_id:
+        Update a blog post if already exist
+        :param blogpost_id:
         :param title:
         :param body:
         :param minor_edit: Indicates whether to notify watchers about changes.
             If False then notifications will be sent.
         :return:
         """
-        return self.update_page(None, blog_post_id, title, body, "blogpost", minor_edit)
+        return self.update_page(None, blogpost_id, title, body, "blogpost", minor_edit)
 
     def update_or_create(self, parent_id, title, body):
         """
@@ -601,11 +554,11 @@ class Confluence(AtlassianRestAPI):
         :param body:
         :return:
         """
-        space = self.get_page_space(parent_id)
+        space = self.get_content_space(parent_id)
 
         if self.page_exists(space, title):
-            page_id = self.get_page_id(space, title)
-            result = self.update_page(parent_id=parent_id, page_id=page_id, title=title, body=body)
+            content_id = self.get_content_id(space, title)
+            result = self.update_page(parent_id=parent_id, content_id=content_id, title=title, body=body)
         else:
             result = self.create_page(space=space, parent_id=parent_id, title=title, body=body)
 
@@ -633,55 +586,55 @@ class Confluence(AtlassianRestAPI):
                 'representation': 'storage'}
         return self.post('rest/api/contentbody/convert/view', data=data)
 
-    def set_page_property(self, page_id, data):
+    def set_content_property(self, content_id, data):
         """
-        Set the page (content) property e.g. add hash parameters
-        :param page_id: content_id format
+        Set the content property e.g. add hash parameters
+        :param content_id: content_id format
         :param data: data should be as json data
         :return:
         """
-        url = 'rest/api/content/{page_id}/property'.format(page_id=page_id)
+        url = 'rest/api/content/{content_id}/property'.format(content_id=content_id)
         json_data = data
         return self.post(path=url, data=json_data)
 
-    def delete_page_property(self, page_id, page_property):
+    def delete_content_property(self, content_id, content_property):
         """
         Delete the page (content) property e.g. delete key of hash
-        :param page_id: content_id format
-        :param page_property: key of property
+        :param content_id: content_id format
+        :param content_property: key of property
         :return:
         """
-        url = 'rest/api/content/{page_id}/property/{page_property}'.format(page_id=page_id,
-                                                                           page_property=str(page_property))
+        url = 'rest/api/content/{content_id}/property/{content_property}'.format(content_id=content_id,
+                                                                                 content_property=str(content_property))
         return self.delete(path=url)
 
-    def get_page_property(self, page_id, page_property_key):
+    def get_content_property(self, content_id, content_property_key):
         """
         Get the page (content) property e.g. get key of hash
-        :param page_id: content_id format
-        :param page_property_key: key of property
+        :param content_id: content_id format
+        :param content_property_key: key of property
         :return:
         """
-        url = 'rest/api/content/{page_id}/property/{key}'.format(page_id=page_id,
-                                                                 key=str(page_property_key))
+        url = 'rest/api/content/{content_id}/property/{key}'.format(content_id=content_id,
+                                                                    key=str(content_property_key))
         return self.get(path=url)
 
-    def get_page_properties(self, page_id):
+    def get_content_properties(self, content_id):
         """
-        Get the page (content) properties
-        :param page_id: content_id format
+        Get the content properties
+        :param content_id: content_id format
         :return: get properties
         """
-        url = 'rest/api/content/{page_id}/property'.format(page_id=page_id)
+        url = 'rest/api/content/{content_id}/property'.format(content_id=content_id)
         return self.get(path=url)
 
-    def get_page_ancestors(self, page_id):
+    def get_content_ancestors(self, content_id):
         """
-        Provide the ancestors from the page (coPntent) id
-        :param page_id: content_id format
+        Provide the ancestors from the content_id
+        :param content_id: content_id format
         :return: get properties
         """
-        url = 'rest/api/content/{page_id}?expand=ancestors'.format(page_id=page_id)
+        url = 'rest/api/content/{content_id}?expand=ancestors'.format(content_id=content_id)
         return (self.get(path=url) or {}).get('ancestors')
 
     def clean_all_caches(self):
@@ -800,35 +753,27 @@ class Confluence(AtlassianRestAPI):
 
         return self.get('rest/api/search', params=params)
 
-    def get_page_as_pdf(self, page_id):
+    def get_content_as_pdf(self, content_id):
         """
-        Export page as standard pdf exporter
-        :param page_id: Page ID
+        Export content as standard pdf exporter
+        :param content_id: content_id ID
         :return: PDF File
         """
         headers = self.form_token_headers
-        url = 'spaces/flyingpdf/pdfpageexport.action?pageId={pageId}'.format(pageId=page_id)
+        url = 'spaces/flyingpdf/pdfpageexport.action?pageId={content_id}'.format(content_id=content_id)
         return self.get(url, headers=headers, not_json_response=True)
 
-    def export_page(self, page_id):
+    def export_content(self, content_id):
         """
         Alias method for export page as pdf
-        :param page_id: Page ID
+        :param content_id:
         :return: PDF File
         """
-        return self.get_page_as_pdf(page_id)
-
-    def export_blog_post(self, blog_post_id):
-        """
-        Alias method for export blog post as pdf
-        :param blog_post_id:
-        :return:
-        """
-        return self.get_page_as_pdf(blog_post_id)
+        return self.get_content_as_pdf(content_id)
 
     def get_descendant_page_id(self, space, parent_id, title):
         """
-        Provide  space, parent_id and title of the descendant page, it will return the descendant page_id
+        Provide space, parent_id and title of the descendant page, it will return the descendant page_id
         :param space: str
         :param parent_id: int
         :param title: str
