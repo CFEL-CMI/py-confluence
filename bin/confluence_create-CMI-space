@@ -12,8 +12,9 @@ You have to provide a servername and a user with rights to create a new space. A
 like the spacekey and name of the new space are required.
 """
 
-from confluence import spaces
 import argparse
+
+from confluence import spaces
 
 
 def main():
@@ -40,7 +41,7 @@ def main():
         args.server += "/"
 
     # create lists of readers, writers, and admins (users and groups)
-    reads  = list()
+    reads = list()
     writes = list()
     admins = list()
     for entity in args.read.split(','):
