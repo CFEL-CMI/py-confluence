@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; fill-column: 120 -*-
+#
+# Copyright (C) 2019 Alexander Franke
+
+import argparse
+import getpass
+
+try:
+    from BeautifulSoup import BeautifulSoup
+except ImportError:
+    from bs4 import BeautifulSoup
+
+from confluence import content
+from confluence import confluence
+
+
+def import_evernote(filepath):
+    with open(filepath, "r", encoding="utf-8") as file:
+        contents = file.read()
+        parsed_html = BeautifulSoup(contents)
+        print(str(parsed_html.body))
+        return parsed_html.title.text, str(parsed_html.body)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--server', dest='server', default="https://confluence.desy.de/",
+                        help='Server address [default: https://confluence.desy.de/]')
+    parser.add_argument('--user', dest='user', default="jkuepper",
+                        help='Please enter your Username. [default: jkuepper]')
+    parser.add_argument('--key', dest='spacekey', required=True,
+                        help='Please enter the spacekey to import into.')
+    parser.add_argument('--file', dest='filepath', required=True, help="Absolute filepath")
+    parser.add_argument('--labels', dest='labels', default='evernote_export',
+                        help='Comma separated list of labels to add')
+    parser.add_argument('--type', dest='contenttype',
+                        help='Type of new content. blogpost or page. Defaults to blogpost', default='blogpost')
+
+    args = parser.parse_args()
+    if args.server[-1:] != "/":
+        args.server += "/"
+
+    print("Please enter the password for User " + args.user)
+    pwd = getpass.getpass()
+
+    c = confluence.Confluence(args.user, pwd, url=args.server)
+
+    title, body = import_evernote(args.filepath)
+    if args.contenttype == 'blogpost':
+        newcontent = content.Blogpost(c, spacekey=args.spacekey)
+        #newcontent.date
+    elif args.contenttype == 'page':
+        newcontent = content.Page(c, spacekey=args.spacekey)
+    else:
+        raise Exception('False argument --type. Must be blogpost or page or not set at all')
+
+    newcontent.title = title
+    newcontent.body  = body
+    #newcontent.labels
+    #print(newcontent.body)
+    newcontent.publish()
+
+if __name__ == "__main__":
+    main()
+

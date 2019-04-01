@@ -70,7 +70,7 @@ def main():
     ### END command line arguments
 
     ### BEGIN settings for connection to server
-    print("Please enter the password for User " + user)
+    print("Please enter the password for User " + args.user)
     pwd = getpass.getpass()
     srv = xmlrpc.client.ServerProxy(servername + 'rpc/xmlrpc')
     token = auth(user, pwd, srv)
