@@ -27,7 +27,7 @@ space; all content is put into a git repository to allow for versioning of the
 downloaded content.
 
 
-# Local Variables:
-# mode: text
-# fill-column: 80
-# End:
+;;; Local Variables:
+;;; mode: text
+;;; fill-column: 80
+;;; End:
