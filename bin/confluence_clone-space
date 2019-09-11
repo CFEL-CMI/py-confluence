@@ -31,7 +31,11 @@ def main():
         try:
             srv.confluence2.logout(token)
         finally:
-            return srv.confluence2.login(user, pwd)
+            try:
+                return srv.confluence2.login(user, pwd)
+            except:
+                print("Authentication issues, stopping without sync. Wrong password?")
+                exit()
 
     ### BEGIN command line arguments
     parser = argparse.ArgumentParser(
