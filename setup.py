@@ -23,7 +23,7 @@ improvements or further tools, please send a patch to the maintainer -- see
 setup.py for details.
 
 Original author:    Alexander Franke
-Current maintainer: Alexander Franke
+Current maintainer: no-one (Jochen Küpper)
 
 See the distribution files AUTHORS and README for further contributions.
 """
