@@ -23,7 +23,7 @@ improvements or further tools, please send a patch to the maintainer -- see
 setup.py for details.
 
 Original author:    Alexander Franke
-Current maintainer: Alexander Franke
+Current maintainer: no-one (Jochen Küpper)
 
 See the distribution files AUTHORS and README for further contributions.
 """
@@ -36,12 +36,14 @@ setup(name="py-confluence",
       maintainer_email    = "alexander.franke@cfel.de",
       url                 = "https://stash.desy.de/projects/CMI/repos/py-confluence",
       description         = "CMI Confluence Python Tools",
-      version             = "0.1.dev0",
+      version             = "0.1",
       long_description    = long_description,
       license             = "GPL",
       packages            = ['confluence'],
       scripts             = ['bin/confluence_clone-space',
-                             'bin/confluence_create-CMI-space'],
+                             'bin/confluence_create-CMI-space',
+                             'bin/confluence_example_create_blog',
+                             'bin/confluence_upload_evernote'],
       install_requires    = ['requests>=2.21.0',
                              'six>=1.12.0',
                              'python-dateutil>=2.7.5',
